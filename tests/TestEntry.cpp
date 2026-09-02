@@ -20,6 +20,8 @@
 
 #include "TestEntry.h"
 #include "core/Clock.h"
+#include "core/CredentialTemplate.h"
+#include "core/EntryAttributes.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "core/TimeInfo.h"
@@ -80,6 +82,59 @@ void TestEntry::testCopyDataFrom()
     QCOMPARE(entry2->autoTypeAssociations()->size(), 2);
     QCOMPARE(entry2->autoTypeAssociations()->get(0).window, QString("1"));
     QCOMPARE(entry2->autoTypeAssociations()->get(1).window, QString("3"));
+}
+
+void TestEntry::testCredentialTemplates()
+{
+    Entry website;
+    CredentialTemplate::apply(&website, CredentialTemplate::Type::Website);
+    QCOMPARE(website.title(), QStringLiteral("Website"));
+    QCOMPARE(CredentialTemplate::typeOf(&website), CredentialTemplate::Type::Website);
+    QVERIFY(website.attributes()->isProtected(EntryAttributes::PasswordKey));
+
+    Entry database;
+    CredentialTemplate::apply(&database, CredentialTemplate::Type::Database);
+    QCOMPARE(database.title(), QStringLiteral("Database"));
+    QCOMPARE(CredentialTemplate::typeOf(&database), CredentialTemplate::Type::Database);
+    QVERIFY(database.attributes()->contains(CredentialTemplate::DatabaseTypeAttribute));
+    QVERIFY(database.attributes()->contains(CredentialTemplate::HostAttribute));
+    QVERIFY(database.attributes()->contains(CredentialTemplate::PortAttribute));
+    QVERIFY(database.attributes()->contains(CredentialTemplate::DatabaseNameAttribute));
+    QVERIFY(database.attributes()->contains(CredentialTemplate::SslModeAttribute));
+
+    Entry ssh;
+    CredentialTemplate::apply(&ssh, CredentialTemplate::Type::Ssh);
+    QCOMPARE(ssh.title(), QStringLiteral("SSH"));
+    QCOMPARE(CredentialTemplate::typeOf(&ssh), CredentialTemplate::Type::Ssh);
+    QCOMPARE(ssh.attributes()->value(CredentialTemplate::PortAttribute), QStringLiteral("22"));
+    QVERIFY(ssh.attributes()->contains(CredentialTemplate::FingerprintAttribute));
+    QVERIFY(ssh.attachments()->keys().isEmpty());
+
+    Entry api;
+    CredentialTemplate::apply(&api, CredentialTemplate::Type::Api);
+    QCOMPARE(api.title(), QStringLiteral("API"));
+    QCOMPARE(CredentialTemplate::typeOf(&api), CredentialTemplate::Type::Api);
+    QCOMPARE(api.attributes()->value(CredentialTemplate::AuthenticationTypeAttribute),
+             QStringLiteral("Bearer"));
+    QCOMPARE(api.attributes()->value(CredentialTemplate::HeaderNameAttribute),
+             QStringLiteral("Authorization"));
+    QVERIFY(api.attributes()->contains(CredentialTemplate::ScopeAttribute));
+    QVERIFY(api.attributes()->contains(CredentialTemplate::ExpiresAtAttribute));
+
+    Entry certificate;
+    CredentialTemplate::apply(&certificate, CredentialTemplate::Type::HttpsCertificate);
+    QCOMPARE(certificate.title(), QStringLiteral("HTTPS Certificate"));
+    QCOMPARE(CredentialTemplate::typeOf(&certificate), CredentialTemplate::Type::HttpsCertificate);
+    QVERIFY(certificate.attributes()->contains(CredentialTemplate::DomainAttribute));
+    QVERIFY(certificate.attributes()->contains(CredentialTemplate::FingerprintAttribute));
+    QVERIFY(certificate.attributes()->contains(CredentialTemplate::IssuerAttribute));
+    QVERIFY(certificate.attributes()->contains(CredentialTemplate::ValidFromAttribute));
+    QVERIFY(certificate.attributes()->contains(CredentialTemplate::ValidUntilAttribute));
+    QVERIFY(certificate.attachments()->keys().isEmpty());
+
+    CredentialTemplate::apply(&certificate, CredentialTemplate::Type::Custom);
+    QCOMPARE(CredentialTemplate::typeOf(&certificate), CredentialTemplate::Type::Custom);
+    QVERIFY(!certificate.attributes()->contains(CredentialTemplate::TypeAttribute));
 }
 
 void TestEntry::testClone()

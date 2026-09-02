@@ -57,6 +57,7 @@
 #include "gui/Icons.h"
 #include "gui/MessageBox.h"
 #include "gui/entry/AutoTypeAssociationsModel.h"
+#include "gui/entry/CredentialFieldsWidget.h"
 #include "gui/entry/EntryAttributesModel.h"
 #include "gui/entry/EntryHistoryModel.h"
 
@@ -72,6 +73,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     , m_attachments(new EntryAttachments())
     , m_customData(new CustomData())
     , m_mainWidget(new QScrollArea(this))
+    , m_credentialsWidget(new CredentialFieldsWidget(this))
     , m_advancedWidget(new QWidget(this))
     , m_iconsWidget(new EditWidgetIcons(this))
     , m_autoTypeWidget(new QWidget(this))
@@ -97,6 +99,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     , m_usernameCompleterModel(new QStringListModel(this))
 {
     setupMain();
+    setupCredentials();
     setupAdvanced();
     setupIcon();
     setupAutoType();
@@ -157,6 +160,8 @@ QWidget* EditEntryWidget::widgetForPage(Page page) const
     switch (page) {
     case Page::Main:
         return m_mainWidget;
+    case Page::Credentials:
+        return m_credentialsWidget;
     case Page::Advanced:
         return m_advancedWidget;
     case Page::Icon:
@@ -223,6 +228,39 @@ void EditEntryWidget::setupMain()
 
     m_mainUi->expirePresets->setMenu(createPresetsMenu());
     connect(m_mainUi->expirePresets->menu(), SIGNAL(triggered(QAction*)), this, SLOT(useExpiryPreset(QAction*)));
+}
+
+void EditEntryWidget::setupCredentials()
+{
+    addPage(tr("Credential"), icons()->icon("password-generator"), m_credentialsWidget);
+
+    connect(m_credentialsWidget, &CredentialFieldsWidget::titleChanged, m_mainUi->titleEdit, &QLineEdit::setText);
+    connect(m_credentialsWidget,
+            &CredentialFieldsWidget::usernameChanged,
+            m_mainUi->usernameComboBox->lineEdit(),
+            &QLineEdit::setText);
+    connect(m_credentialsWidget,
+            &CredentialFieldsWidget::passwordChanged,
+            m_mainUi->passwordEdit,
+            &PasswordWidget::setText);
+    connect(m_credentialsWidget, &CredentialFieldsWidget::urlChanged, m_mainUi->urlEdit, &QLineEdit::setText);
+
+    connect(m_mainUi->titleEdit, &QLineEdit::textChanged, m_credentialsWidget, &CredentialFieldsWidget::setTitle);
+    connect(m_mainUi->usernameComboBox->lineEdit(),
+            &QLineEdit::textChanged,
+            m_credentialsWidget,
+            &CredentialFieldsWidget::setUsername);
+    connect(m_mainUi->passwordEdit,
+            &PasswordWidget::textChanged,
+            m_credentialsWidget,
+            &CredentialFieldsWidget::setPassword);
+    connect(m_mainUi->urlEdit, &QLineEdit::textChanged, m_credentialsWidget, &CredentialFieldsWidget::setUrl);
+
+    connect(m_credentialsWidget, &CredentialFieldsWidget::modified, this, [this] { setModified(); });
+    connect(m_credentialsWidget,
+            &CredentialFieldsWidget::errorOccurred,
+            this,
+            [this](const QString& error) { showMessage(error, MessageWidget::Error); });
 }
 
 void EditEntryWidget::setupAdvanced()
@@ -907,7 +945,13 @@ void EditEntryWidget::loadEntry(Entry* entry,
     setForms(entry);
     setReadOnly(m_history);
 
-    switchToPage(Page::Main);
+    const auto credentialType = CredentialTemplate::typeOf(entry);
+    setPageHidden(m_credentialsWidget, credentialType == CredentialTemplate::Type::Custom);
+    if (credentialType == CredentialTemplate::Type::Custom) {
+        switchToPage(Page::Main);
+    } else {
+        switchToPage(Page::Credentials);
+    }
     setPageHidden(m_historyWidget, m_history || m_entry->historyItems().count() < 1);
 #ifdef WITH_XC_SSHAGENT
     setPageHidden(m_sshAgentWidget, !sshAgent()->isEnabled());
@@ -996,6 +1040,7 @@ void EditEntryWidget::setForms(Entry* entry, bool restore)
 
     m_advancedUi->attachmentsWidget->linkAttachments(m_attachments.data());
     m_entryAttributes->copyCustomKeysFrom(entry->attributes());
+    m_credentialsWidget->setEntry(entry, m_entryAttributes, m_attachments.data(), m_history);
 
     if (m_attributesModel->rowCount() != 0) {
         m_advancedUi->attributesView->setCurrentIndex(m_attributesModel->index(0, 0));
@@ -1336,6 +1381,7 @@ void EditEntryWidget::clear()
     m_entry = nullptr;
     m_db.reset();
 
+    m_credentialsWidget->clear();
     m_mainUi->titleEdit->setText("");
     m_mainUi->passwordEdit->setText("");
     m_mainUi->urlEdit->setText("");

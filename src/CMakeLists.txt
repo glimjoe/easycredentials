@@ -23,6 +23,7 @@ set(keepassx_SOURCES
         core/Bootstrap.cpp
         core/Clock.cpp
         core/Config.cpp
+        core/CredentialTemplate.cpp
         core/CustomData.cpp
         core/Database.cpp
         core/DatabaseStats.cpp
@@ -129,6 +130,7 @@ set(keepassx_SOURCES
         gui/csvImport/CsvImportWidget.cpp
         gui/csvImport/CsvParserModel.cpp
         gui/entry/AutoTypeAssociationsModel.cpp
+        gui/entry/CredentialFieldsWidget.cpp
         gui/entry/EditEntryWidget.cpp
         gui/entry/EntryAttachmentsModel.cpp
         gui/entry/EntryAttachmentsWidget.cpp
@@ -411,8 +413,8 @@ if(WIN32)
     include(GenerateProductVersion)
     generate_product_version(
             WIN32_ResourceFiles
-            NAME "KeePassXC"
-            COMPANY_NAME "KeePassXC Team"
+            NAME "EasyCredentials"
+            COMPANY_NAME "EasyCredentials contributors"
             VERSION_MAJOR ${KEEPASSXC_VERSION_MAJOR}
             VERSION_MINOR ${KEEPASSXC_VERSION_MINOR}
             VERSION_PATCH ${KEEPASSXC_VERSION_PATCH}

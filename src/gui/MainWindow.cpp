@@ -76,7 +76,7 @@
 #include "mainwindowadaptor.h"
 #endif
 
-const QString MainWindow::BaseWindowTitle = "KeePassXC";
+const QString MainWindow::BaseWindowTitle = "EasyCredentials";
 
 MainWindow* g_MainWindow = nullptr;
 MainWindow* getMainWindow()
@@ -162,6 +162,41 @@ MainWindow::MainWindow()
 
     m_entryNewContextMenu = new QMenu(this);
     m_entryNewContextMenu->addAction(m_ui->actionEntryNew);
+
+    auto* credentialMenu = new QMenu(tr("New Credential"), this);
+    const auto addTemplateAction = [this, credentialMenu](const QString& text,
+                                                         const QString& objectName,
+                                                         CredentialTemplate::Type type) {
+        auto* action = credentialMenu->addAction(text);
+        action->setObjectName(objectName);
+        connect(action, &QAction::triggered, this, [this, type] {
+            auto* dbWidget = qobject_cast<DatabaseWidget*>(m_actionMultiplexer.currentObject());
+            if (dbWidget) {
+                dbWidget->createEntry(type);
+            }
+        });
+    };
+
+    addTemplateAction(tr("Custom Entry"), QStringLiteral("actionEntryNewCustom"), CredentialTemplate::Type::Custom);
+    credentialMenu->addSeparator();
+    addTemplateAction(tr("Website Account"),
+                      QStringLiteral("actionEntryNewWebsite"),
+                      CredentialTemplate::Type::Website);
+    addTemplateAction(tr("Database Credential"),
+                      QStringLiteral("actionEntryNewDatabase"),
+                      CredentialTemplate::Type::Database);
+    addTemplateAction(tr("SSH Credential"), QStringLiteral("actionEntryNewSsh"), CredentialTemplate::Type::Ssh);
+    addTemplateAction(tr("API Credential"), QStringLiteral("actionEntryNewApi"), CredentialTemplate::Type::Api);
+    addTemplateAction(tr("HTTPS Certificate"),
+                      QStringLiteral("actionEntryNewHttpsCertificate"),
+                      CredentialTemplate::Type::HttpsCertificate);
+
+    m_ui->actionEntryNew->setMenu(credentialMenu);
+    auto* entryNewButton = qobject_cast<QToolButton*>(m_ui->toolBar->widgetForAction(m_ui->actionEntryNew));
+    if (entryNewButton) {
+        entryNewButton->setMenu(credentialMenu);
+        entryNewButton->setPopupMode(QToolButton::MenuButtonPopup);
+    }
 
     // Build Entry Level Auto-Type menu
     auto autotypeMenu = new QMenu({}, this);

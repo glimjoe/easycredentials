@@ -70,6 +70,7 @@ int main(int argc, char** argv)
     // don't set organizationName as that changes the return value of
     // QStandardPaths::writableLocation(QDesktopServices::DataLocation)
     Application::setApplicationName("KeePassXC");
+    QGuiApplication::setApplicationDisplayName(QStringLiteral("EasyCredentials"));
     Application::setApplicationVersion(KEEPASSXC_VERSION);
     app.setProperty("KPXC_QUALIFIED_APPNAME", "org.keepassxc.KeePassXC");
 
@@ -80,7 +81,7 @@ int main(int argc, char** argv)
     }
 
     QCommandLineParser parser;
-    parser.setApplicationDescription(QObject::tr("KeePassXC - cross-platform password manager"));
+    parser.setApplicationDescription(QObject::tr("EasyCredentials - developer credential manager"));
     parser.addPositionalArgument(
         "filename(s)", QObject::tr("filenames of the password databases to open (*.kdbx)"), "[filename(s)]");
 
@@ -163,13 +164,13 @@ int main(int argc, char** argv)
                 app.sendFileNamesToRunningInstance(fileNames);
             }
 
-            qWarning() << QObject::tr("Another instance of KeePassXC is already running.").toUtf8().constData();
+            qWarning() << QObject::tr("Another instance of EasyCredentials is already running.").toUtf8().constData();
         }
         return EXIT_SUCCESS;
     }
 
     if (parser.isSet(lockOption)) {
-        qWarning() << QObject::tr("KeePassXC is not running. No open database to lock").toUtf8().constData();
+        qWarning() << QObject::tr("EasyCredentials is not running. No open database to lock").toUtf8().constData();
 
         // still return with EXIT_SUCCESS because when used within a script for ensuring that there is no unlocked
         // keepass database (e.g. screen locking) we can consider it as successful
@@ -180,7 +181,7 @@ int main(int argc, char** argv)
         QString error = QObject::tr("Fatal error while testing the cryptographic functions.");
         error.append("\n");
         error.append(Crypto::errorString());
-        MessageBox::critical(nullptr, QObject::tr("KeePassXC - Error"), error);
+        MessageBox::critical(nullptr, QObject::tr("EasyCredentials - Error"), error);
         return EXIT_FAILURE;
     }
 

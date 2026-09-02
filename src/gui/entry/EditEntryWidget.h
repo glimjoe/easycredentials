@@ -30,6 +30,7 @@
 
 class AutoTypeAssociations;
 class AutoTypeAssociationsModel;
+class CredentialFieldsWidget;
 class CustomData;
 class Database;
 class EditWidgetIcons;
@@ -80,6 +81,7 @@ public:
     enum class Page
     {
         Main,
+        Credentials,
         Advanced,
         Icon,
         AutoType,
@@ -151,6 +153,7 @@ private slots:
 
 private:
     void setupMain();
+    void setupCredentials();
     void setupAdvanced();
     void setupIcon();
     void setupAutoType();
@@ -196,6 +199,7 @@ private:
     const QScopedPointer<CustomData> m_customData;
 
     QScrollArea* const m_mainWidget;
+    CredentialFieldsWidget* const m_credentialsWidget;
     QWidget* const m_advancedWidget;
     EditWidgetIcons* const m_iconsWidget;
     QWidget* const m_autoTypeWidget;

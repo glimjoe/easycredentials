@@ -32,6 +32,7 @@
 #include <QTextEdit>
 
 #include "autotype/AutoType.h"
+#include "core/CredentialTemplate.h"
 #include "core/EntrySearcher.h"
 #include "core/Merger.h"
 #include "core/Tools.h"
@@ -459,6 +460,11 @@ void DatabaseWidget::emitCurrentModeChanged()
 
 void DatabaseWidget::createEntry()
 {
+    createEntry(CredentialTemplate::Type::Custom);
+}
+
+void DatabaseWidget::createEntry(CredentialTemplate::Type type)
+{
     Q_ASSERT(m_groupView->currentGroup());
     if (!m_groupView->currentGroup()) {
         return;
@@ -468,6 +474,7 @@ void DatabaseWidget::createEntry()
 
     m_newEntry->setUuid(QUuid::createUuid());
     m_newEntry->setUsername(m_db->metadata()->defaultUserName());
+    CredentialTemplate::apply(m_newEntry.data(), type);
     m_newParent = m_groupView->currentGroup();
     m_newParent->applyGroupIconOnCreateTo(m_newEntry.data());
     switchToEntryEdit(m_newEntry.data(), true);

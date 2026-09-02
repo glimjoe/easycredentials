@@ -21,6 +21,7 @@
 
 #include <QCheckBox>
 #include <QClipboard>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -31,6 +32,7 @@
 #include <QToolBar>
 
 #include "config-keepassx-tests.h"
+#include "core/CredentialTemplate.h"
 #include "core/PasswordHealth.h"
 #include "core/Tools.h"
 #include "crypto/Crypto.h"
@@ -51,6 +53,7 @@
 #include "gui/dbsettings/DatabaseSettingsDialog.h"
 #include "gui/dbsettings/DatabaseSettingsWidgetEncryption.h"
 #include "gui/entry/EditEntryWidget.h"
+#include "gui/entry/CredentialFieldsWidget.h"
 #include "gui/entry/EntryView.h"
 #include "gui/group/EditGroupWidget.h"
 #include "gui/group/GroupModel.h"
@@ -707,6 +710,52 @@ void TestGui::testAddEntry()
 
     // Confirm no changed entry count
     QTRY_COMPARE(entryView->model()->rowCount(), 3);
+}
+
+void TestGui::testAddCredentialEntry()
+{
+    auto* databaseAction = m_mainWindow->findChild<QAction*>(QStringLiteral("actionEntryNewDatabase"));
+    QVERIFY(databaseAction);
+
+    databaseAction->trigger();
+    QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
+
+    auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>(QStringLiteral("editEntryWidget"));
+    QVERIFY(editEntryWidget);
+    QCOMPARE(CredentialTemplate::typeOf(editEntryWidget->currentEntry()), CredentialTemplate::Type::Database);
+
+    auto* credentialWidget = editEntryWidget->findChild<CredentialFieldsWidget*>();
+    QVERIFY(credentialWidget);
+    QVERIFY(credentialWidget->isVisible());
+
+    auto* titleEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_title"));
+    auto* hostEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_Host"));
+    auto* portEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_Port"));
+    auto* usernameEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_username"));
+    auto* passwordEdit =
+        credentialWidget->findChild<PasswordWidget*>(QStringLiteral("credentialPasswordField"));
+    QVERIFY(titleEdit);
+    QVERIFY(hostEdit);
+    QVERIFY(portEdit);
+    QVERIFY(usernameEdit);
+    QVERIFY(passwordEdit);
+
+    titleEdit->setText(QStringLiteral("Local database"));
+    hostEdit->setText(QStringLiteral("127.0.0.1"));
+    portEdit->setText(QStringLiteral("3306"));
+    usernameEdit->setText(QStringLiteral("developer"));
+    passwordEdit->setText(QStringLiteral("secret"));
+
+    auto* buttonBox = editEntryWidget->findChild<QDialogButtonBox*>(QStringLiteral("buttonBox"));
+    QTest::mouseClick(buttonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
+
+    auto* entry = m_dbWidget->currentSelectedEntry();
+    QVERIFY(entry);
+    QCOMPARE(entry->title(), QStringLiteral("Local database"));
+    QCOMPARE(entry->username(), QStringLiteral("developer"));
+    QCOMPARE(entry->password(), QStringLiteral("secret"));
+    QCOMPARE(entry->attributes()->value(CredentialTemplate::HostAttribute), QStringLiteral("127.0.0.1"));
+    QCOMPARE(entry->attributes()->value(CredentialTemplate::PortAttribute), QStringLiteral("3306"));
 }
 
 void TestGui::testPasswordEntryEntropy_data()

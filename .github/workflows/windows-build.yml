@@ -1,0 +1,93 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: MSVC x64
+    runs-on: windows-2022
+    timeout-minutes: 360
+
+    env:
+      VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}\\vcpkg-cache,readwrite"
+      VCPKG_FEATURE_FLAGS: manifests,binarycaching
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg-cache
+          key: windows-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            windows-vcpkg-
+
+      - name: Prepare vcpkg cache
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\vcpkg-cache" | Out-Null
+
+      - name: Configure
+        shell: pwsh
+        run: >-
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DX_VCPKG_APPLOCAL_DEPS_INSTALL=ON
+          -DWITH_XC_ALL=ON
+          -DWITH_TESTS=ON
+          -DWITH_GUI_TESTS=ON
+          -DKEEPASSXC_BUILD_TYPE=Snapshot
+          -DOVERRIDE_VERSION=2.7.12-easycredentials
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel 2
+
+      - name: Test
+        shell: pwsh
+        working-directory: build
+        run: ctest -C Release --output-on-failure --parallel 2
+
+      - name: Package portable ZIP
+        shell: pwsh
+        working-directory: build
+        run: cpack -G ZIP -C Release
+
+      - name: Prepare artifact
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -LiteralPath build -Filter '*.zip' | Select-Object -First 1
+          if (-not $package) {
+              throw 'CPack did not create a ZIP package.'
+          }
+
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $outputDirectory = Join-Path $env:GITHUB_WORKSPACE 'dist'
+          $outputFile = Join-Path $outputDirectory "EasyCredentials-Windows-x64-$shortSha.zip"
+          New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+          Copy-Item -LiteralPath $package.FullName -Destination $outputFile
+
+          $hash = (Get-FileHash -LiteralPath $outputFile -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path -Leaf $outputFile)" |
+              Set-Content -LiteralPath "$outputFile.sha256" -Encoding ascii
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyCredentials-Windows-x64-${{ github.run_number }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14

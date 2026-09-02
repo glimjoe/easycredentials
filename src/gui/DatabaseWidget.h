@@ -22,6 +22,7 @@
 #include <QBuffer>
 #include <QStackedWidget>
 
+#include "core/CredentialTemplate.h"
 #include "core/Database.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
@@ -125,6 +126,7 @@ public:
     QHash<Config::ConfigKey, QList<int>> splitterSizes() const;
     void setSplitterSizes(const QHash<Config::ConfigKey, QList<int>>& sizes);
     void setSearchStringForAutoType(const QString& search);
+    void createEntry(CredentialTemplate::Type type);
 
 signals:
     // relayed Database signals

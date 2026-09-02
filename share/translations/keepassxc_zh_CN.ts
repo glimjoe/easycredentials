@@ -10258,4 +10258,195 @@ Example: JBSWY3DPEHPK3PXP</source>
         <translation>未知</translation>
     </message>
 </context>
+<context>
+    <name>CredentialFieldsWidget</name>
+    <message>
+        <source>Key and certificate files</source>
+        <translation>密钥和证书文件</translation>
+    </message>
+    <message>
+        <source>Website account</source>
+        <translation>网站账号</translation>
+    </message>
+    <message>
+        <source>Entry name</source>
+        <translation>条目名称</translation>
+    </message>
+    <message>
+        <source>Website URL</source>
+        <translation>网站地址</translation>
+    </message>
+    <message>
+        <source>Username</source>
+        <translation>用户名</translation>
+    </message>
+    <message>
+        <source>Password</source>
+        <translation>密码</translation>
+    </message>
+    <message>
+        <source>Database connection credential</source>
+        <translation>数据库连接凭据</translation>
+    </message>
+    <message>
+        <source>Database type</source>
+        <translation>数据库类型</translation>
+    </message>
+    <message>
+        <source>Host</source>
+        <translation>主机</translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation>端口</translation>
+    </message>
+    <message>
+        <source>Default database</source>
+        <translation>默认数据库</translation>
+    </message>
+    <message>
+        <source>SSL/TLS mode</source>
+        <translation>SSL/TLS 模式</translation>
+    </message>
+    <message>
+        <source>SSH credential. Add private and public key files below; attachments remain encrypted in the KDBX file.</source>
+        <translation>SSH 凭据。请在下方添加私钥和公钥文件；附件会继续加密保存在 KDBX 文件中。</translation>
+    </message>
+    <message>
+        <source>Key passphrase</source>
+        <translation>密钥口令</translation>
+    </message>
+    <message>
+        <source>Fingerprint</source>
+        <translation>指纹</translation>
+    </message>
+    <message>
+        <source>API credential</source>
+        <translation>API 凭据</translation>
+    </message>
+    <message>
+        <source>Authentication type</source>
+        <translation>认证类型</translation>
+    </message>
+    <message>
+        <source>Endpoint</source>
+        <translation>接口地址</translation>
+    </message>
+    <message>
+        <source>Header name</source>
+        <translation>请求头名称</translation>
+    </message>
+    <message>
+        <source>Client ID</source>
+        <translation>客户端 ID</translation>
+    </message>
+    <message>
+        <source>API key / token</source>
+        <translation>API 密钥 / 令牌</translation>
+    </message>
+    <message>
+        <source>Scope</source>
+        <translation>权限范围</translation>
+    </message>
+    <message>
+        <source>Expires at</source>
+        <translation>过期时间</translation>
+    </message>
+    <message>
+        <source>HTTPS certificate credential. Add the certificate, private key, and chain files below.</source>
+        <translation>HTTPS 证书凭据。请在下方添加证书、私钥和证书链文件。</translation>
+    </message>
+    <message>
+        <source>Domain</source>
+        <translation>域名</translation>
+    </message>
+    <message>
+        <source>Private key passphrase</source>
+        <translation>私钥口令</translation>
+    </message>
+    <message>
+        <source>Issuer</source>
+        <translation>签发者</translation>
+    </message>
+    <message>
+        <source>Valid from</source>
+        <translation>生效日期</translation>
+    </message>
+    <message>
+        <source>Valid until</source>
+        <translation>失效日期</translation>
+    </message>
+</context>
+<context>
+    <name>EditEntryWidget</name>
+    <message>
+        <source>Credential</source>
+        <translation>凭据</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>New Credential</source>
+        <translation>新建凭据</translation>
+    </message>
+    <message>
+        <source>Custom Entry</source>
+        <translation>自定义条目</translation>
+    </message>
+    <message>
+        <source>Website Account</source>
+        <translation>网站账号</translation>
+    </message>
+    <message>
+        <source>Database Credential</source>
+        <translation>数据库凭据</translation>
+    </message>
+    <message>
+        <source>SSH Credential</source>
+        <translation>SSH 凭据</translation>
+    </message>
+    <message>
+        <source>API Credential</source>
+        <translation>API 凭据</translation>
+    </message>
+    <message>
+        <source>HTTPS Certificate</source>
+        <translation>HTTPS 证书</translation>
+    </message>
+</context>
+<context>
+    <name>AboutDialog</name>
+    <message>
+        <source>About EasyCredentials</source>
+        <translation>关于 EasyCredentials</translation>
+    </message>
+    <message>
+        <source>EasyCredentials is based on KeePassXC and distributed under the terms of the GNU General Public License (GPL) version 3.</source>
+        <translation>EasyCredentials 基于 KeePassXC，并依据 GNU 通用公共许可证（GPL）第 3 版发布。</translation>
+    </message>
+    <message>
+        <source>KeePassXC Project Maintainers:</source>
+        <translation>KeePassXC 项目维护者：</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <source>EasyCredentials - developer credential manager</source>
+        <translation>EasyCredentials - 开发者凭据管理器</translation>
+    </message>
+    <message>
+        <source>Another instance of EasyCredentials is already running.</source>
+        <translation>EasyCredentials 的另一个实例已在运行。</translation>
+    </message>
+    <message>
+        <source>EasyCredentials is not running. No open database to lock</source>
+        <translation>EasyCredentials 未运行，没有可锁定的已打开数据库</translation>
+    </message>
+    <message>
+        <source>EasyCredentials - Error</source>
+        <translation>EasyCredentials - 错误</translation>
+    </message>
+</context>
 </TS>
