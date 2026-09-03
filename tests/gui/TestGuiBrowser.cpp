@@ -132,7 +132,7 @@ void TestGuiBrowser::testEntrySettings()
     auto* entryView = m_dbWidget->findChild<EntryView*>("entryView");
 
     entryView->setFocus();
-    QVERIFY(entryView->hasFocus());
+    QTRY_VERIFY(entryView->hasFocus());
 
     // Select the first entry in the database
     QModelIndex entryItem = entryView->model()->index(0, 1);
@@ -177,7 +177,7 @@ void TestGuiBrowser::testAdditionalURLs()
     auto* entryView = m_dbWidget->findChild<EntryView*>("entryView");
 
     entryView->setFocus();
-    QVERIFY(entryView->hasFocus());
+    QTRY_VERIFY(entryView->hasFocus());
 
     // Select the first entry in the database
     QModelIndex entryItem = entryView->model()->index(0, 1);

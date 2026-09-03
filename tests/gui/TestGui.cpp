@@ -654,7 +654,9 @@ void TestGui::testAddEntry()
     QVERIFY(entryNewWidget->isEnabled());
 
     // Click the new entry button and check that we enter edit mode
-    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    const auto entryNewPrimaryClickPos =
+        QPoint(entryNewWidget->width() / 3, entryNewWidget->height() / 2);
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton, Qt::NoModifier, entryNewPrimaryClickPos);
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     // Add entry "test" and confirm added
@@ -682,7 +684,7 @@ void TestGui::testAddEntry()
     checkStatusBarText("2 Ent");
 
     // Add entry "something 2"
-    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton, Qt::NoModifier, entryNewPrimaryClickPos);
     QTest::keyClicks(titleEdit, "something 2");
     QTest::mouseClick(usernameComboBox, Qt::LeftButton);
     QTest::keyClicks(usernameComboBox, "Auto");
@@ -701,7 +703,7 @@ void TestGui::testAddEntry()
     QCOMPARE(entry->historyItems().size(), 0);
 
     // Add entry "something 5" but click cancel button (does NOT add entry)
-    QTest::mouseClick(entryNewWidget, Qt::LeftButton);
+    QTest::mouseClick(entryNewWidget, Qt::LeftButton, Qt::NoModifier, entryNewPrimaryClickPos);
     QTest::keyClicks(titleEdit, "something 5");
     MessageBox::setNextAnswer(MessageBox::Discard);
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Cancel), Qt::LeftButton);

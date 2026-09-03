@@ -69,11 +69,11 @@ macro(add_unit_test)
     endif(NOT TEST_OUTPUT)
     set(TEST_OUTPUT ${TEST_OUTPUT} CACHE STRING "The output to generate when running the QTest unit tests")
 
-    if(KDE4_TEST_OUTPUT STREQUAL "xml")
-        add_test(${_test_NAME} ${_test_LAUNCHER} ${_test_NAME} -xml -o ${_test_NAME}.tml)
-    else(KDE4_TEST_OUTPUT STREQUAL "xml")
-        add_test(${_test_NAME} ${_test_LAUNCHER} ${_test_NAME})
-    endif(KDE4_TEST_OUTPUT STREQUAL "xml")
+    if(TEST_OUTPUT STREQUAL "xml")
+        add_test(${_test_NAME} ${_test_LAUNCHER} ${_test_NAME} -xml -o ${_test_NAME}.xml)
+    else(TEST_OUTPUT STREQUAL "xml")
+        add_test(${_test_NAME} ${_test_LAUNCHER} ${_test_NAME} -txt -o ${_test_NAME}.txt)
+    endif(TEST_OUTPUT STREQUAL "xml")
 
     if(NOT MSVC_IDE)   #not needed for the ide
         # if the tests are EXCLUDE_FROM_ALL, add a target "buildtests" to build all tests
