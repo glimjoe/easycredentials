@@ -442,8 +442,22 @@ if(WIN32)
             endif()
         endif()
     endif()
+    # Resolve the Windows SDK library path explicitly when it is absent from CMake's implicit link directories.
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "x64")
+        set(WINSDK_ARCH_DIR "x64")
+    else()
+        set(WINSDK_ARCH_DIR "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+    if(CMAKE_WINDOWS_KITS_10_DIR)
+        set(WINSDK_LIB_DIR
+                "${CMAKE_WINDOWS_KITS_10_DIR}/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um/${WINSDK_ARCH_DIR}")
+    else()
+        set(WINSDK_LIB_DIR
+                "$ENV{ProgramFiles\(x86\)}/Windows Kits/10/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um/${WINSDK_ARCH_DIR}")
+    endif()
+
     # Determine if we can link against the Windows SDK, used for Windows Hello support
-    find_library(WINSDK WindowsApp.lib)
+    find_library(WINSDK WindowsApp.lib HINTS ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES} "${WINSDK_LIB_DIR}")
 endif()
 
 if(APPLE AND WITH_APP_BUNDLE OR WIN32)
