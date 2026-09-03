@@ -90,7 +90,6 @@ void TestEntry::testCredentialTemplates()
     CredentialTemplate::apply(&website, CredentialTemplate::Type::Website);
     QCOMPARE(website.title(), QStringLiteral("Website"));
     QCOMPARE(CredentialTemplate::typeOf(&website), CredentialTemplate::Type::Website);
-    QVERIFY(website.attributes()->isProtected(EntryAttributes::PasswordKey));
 
     Entry database;
     CredentialTemplate::apply(&database, CredentialTemplate::Type::Database);

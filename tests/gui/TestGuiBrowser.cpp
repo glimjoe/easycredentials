@@ -146,7 +146,7 @@ void TestGuiBrowser::testEntrySettings()
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
 
     // Switch to Properties page and select all rows from the custom data table
-    editEntryWidget->setCurrentPage(5);
+    editEntryWidget->switchToPage(EditEntryWidget::Page::Properties);
     auto customDataTableView = editEntryWidget->findChild<QTableView*>("customDataTable");
     QVERIFY(customDataTableView);
     QTest::mouseClick(customDataTableView, Qt::LeftButton);
@@ -190,7 +190,7 @@ void TestGuiBrowser::testAdditionalURLs()
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
 
     // Switch to Browser Integration page and add three URL's
-    editEntryWidget->setCurrentPage(4);
+    editEntryWidget->switchToPage(EditEntryWidget::Page::Browser);
     auto* addURLButton = editEntryWidget->findChild<QPushButton*>("addURLButton");
     QVERIFY(addURLButton);
 
@@ -207,7 +207,7 @@ void TestGuiBrowser::testAdditionalURLs()
     }
 
     // Check the values from attributesEdit
-    editEntryWidget->setCurrentPage(1);
+    editEntryWidget->switchToPage(EditEntryWidget::Page::Advanced);
     auto* attributesView = editEntryWidget->findChild<QListView*>("attributesView");
     auto* attrTextEdit = editEntryWidget->findChild<QPlainTextEdit*>("attributesEdit");
 
