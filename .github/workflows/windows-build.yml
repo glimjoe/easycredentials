@@ -45,6 +45,7 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DX_VCPKG_APPLOCAL_DEPS_INSTALL=ON
           -DWITH_XC_ALL=ON
+          -DWITH_XC_DOCS=OFF
           -DWITH_TESTS=ON
           -DWITH_GUI_TESTS=ON
           -DKEEPASSXC_BUILD_TYPE=Snapshot
