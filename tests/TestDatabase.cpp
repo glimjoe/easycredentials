@@ -283,6 +283,9 @@ void TestDatabase::testExternallyModified()
     db->metadata()->setName("test2");
     QVERIFY(db->save(Database::Atomic, {}, &error));
 
+    // Short delay to allow file system settling to reduce test failures
+    Tools::wait(100);
+
     QSignalSpy spyFileChanged(db.data(), &Database::databaseFileChanged);
     QVERIFY(tempFile.copyFromFile(dbFileName));
     QTRY_COMPARE(spyFileChanged.count(), 1);
