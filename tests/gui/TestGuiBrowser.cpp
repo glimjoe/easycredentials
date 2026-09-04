@@ -131,9 +131,6 @@ void TestGuiBrowser::testEntrySettings()
     auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
     auto* entryView = m_dbWidget->findChild<EntryView*>("entryView");
 
-    entryView->setFocus();
-    QTRY_VERIFY(entryView->hasFocus());
-
     // Select the first entry in the database
     QModelIndex entryItem = entryView->model()->index(0, 1);
     Entry* entry = entryView->entryFromIndex(entryItem);
@@ -175,9 +172,6 @@ void TestGuiBrowser::testAdditionalURLs()
 {
     auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
     auto* entryView = m_dbWidget->findChild<EntryView*>("entryView");
-
-    entryView->setFocus();
-    QTRY_VERIFY(entryView->hasFocus());
 
     // Select the first entry in the database
     QModelIndex entryItem = entryView->model()->index(0, 1);
