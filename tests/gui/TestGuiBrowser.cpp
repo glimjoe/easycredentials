@@ -195,9 +195,19 @@ void TestGuiBrowser::testAdditionalURLs()
 
     for (const auto& url : testURLs) {
         QTest::mouseClick(addURLButton, Qt::LeftButton);
-        QApplication::processEvents();
-        QTest::keyClicks(urlList->focusWidget(), url);
-        QTest::keyClick(urlList->focusWidget(), Qt::Key_Enter);
+
+        QLineEdit* urlEditor = nullptr;
+        QTRY_VERIFY((urlEditor = urlList->findChild<QLineEdit*>()) && urlEditor->isVisible());
+        urlEditor->selectAll();
+        QTest::keyClicks(urlEditor, url);
+        QTest::keyClick(urlEditor, Qt::Key_Enter);
+
+        QTRY_VERIFY(!urlList->findChild<QLineEdit*>());
+        QTRY_COMPARE(urlList->model()
+                         ->index(urlList->model()->rowCount() - 1, 0)
+                         .data(Qt::EditRole)
+                         .toString(),
+                     url);
     }
 
     // Check the values from attributesEdit

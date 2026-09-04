@@ -30,7 +30,6 @@
 #include <QSpinBox>
 #include <QTest>
 #include <QToolBar>
-#include <QToolButton>
 
 #include "config-keepassx-tests.h"
 #include "core/CredentialTemplate.h"
@@ -70,17 +69,6 @@
 #define TEST_MODAL(TEST_CODE)                                                                                          \
     TEST_MODAL_NO_WAIT(TEST_CODE);                                                                                     \
     QTRY_VERIFY(dialogFinished)
-
-namespace
-{
-    void triggerEntryNewAction(QWidget* entryNewWidget)
-    {
-        auto* entryNewButton = qobject_cast<QToolButton*>(entryNewWidget);
-        QVERIFY(entryNewButton);
-        QVERIFY(entryNewButton->defaultAction());
-        entryNewButton->defaultAction()->trigger();
-    }
-}
 
 int main(int argc, char* argv[])
 {
@@ -617,7 +605,6 @@ void TestGui::testSearchEditEntry()
 
     // Find buttons for entry creation
     auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
-    QWidget* entryNewWidget = toolBar->widgetForAction(m_mainWindow->findChild<QAction*>("actionEntryNew"));
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
     auto* titleEdit = editEntryWidget->findChild<QLineEdit*>("titleEdit");
     auto* editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
@@ -625,7 +612,7 @@ void TestGui::testSearchEditEntry()
     // Create "Doggy" in "Good"
     Group* goodGroup = m_dbWidget->currentGroup()->findChildByName(QString("Good"));
     m_dbWidget->groupView()->setCurrentGroup(goodGroup);
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "Doggy");
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
     // Select "Bad" group in groupView
@@ -666,7 +653,7 @@ void TestGui::testAddEntry()
     QVERIFY(entryNewWidget->isEnabled());
 
     // Click the new entry button and check that we enter edit mode
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     // Add entry "test" and confirm added
@@ -694,7 +681,7 @@ void TestGui::testAddEntry()
     checkStatusBarText("2 Ent");
 
     // Add entry "something 2"
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "something 2");
     QTest::mouseClick(usernameComboBox, Qt::LeftButton);
     QTest::keyClicks(usernameComboBox, "Auto");
@@ -713,7 +700,7 @@ void TestGui::testAddEntry()
     QCOMPARE(entry->historyItems().size(), 0);
 
     // Add entry "something 5" but click cancel button (does NOT add entry)
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "something 5");
     MessageBox::setNextAnswer(MessageBox::Discard);
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Cancel), Qt::LeftButton);
@@ -832,7 +819,7 @@ void TestGui::testPasswordEntryEntropy()
     QVERIFY(entryNewWidget->isEnabled());
 
     // Click the new entry button and check that we enter edit mode
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     // Add entry "test" and confirm added
@@ -894,7 +881,7 @@ void TestGui::testDicewareEntryEntropy()
     QVERIFY(entryNewWidget->isEnabled());
 
     // Click the new entry button and check that we enter edit mode
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     // Add entry "test" and confirm added
@@ -1389,7 +1376,7 @@ void TestGui::testEntryPlaceholders()
     QVERIFY(entryNewWidget->isEnabled());
 
     // Click the new entry button and check that we enter edit mode
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     // Add entry "test" and confirm added
@@ -1734,15 +1721,7 @@ void TestGui::testDatabaseSettings()
     // 2 create new entries
 
     // 2.a) Click the new entry button and set the title
-    auto* entryNewAction = m_mainWindow->findChild<QAction*>("actionEntryNew");
-    QVERIFY(entryNewAction->isEnabled());
-
-    auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
-    QVERIFY(toolBar);
-
-    QWidget* entryNewWidget = toolBar->widgetForAction(entryNewAction);
-
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
@@ -1762,7 +1741,7 @@ void TestGui::testDatabaseSettings()
     QTRY_COMPARE(writeDbSignalSpy.count(), 0);
 
     // 2.d) Create second entry to test delay timer reset
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
     QTest::keyClicks(titleEdit, "Test autosaveDelay 2");
 
@@ -1782,7 +1761,7 @@ void TestGui::testDatabaseSettings()
 
     // 4 Test no delay when disabled autosave or autosaveDelay
     // 4.a) create new entry
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
     QTest::keyClicks(titleEdit, "Test autosaveDelay 3");
 
@@ -1803,7 +1782,7 @@ void TestGui::testDatabaseSettings()
 
     // 4.f) Repeat for autosaveDelay
     config()->set(Config::AutoSaveAfterEveryChange, true);
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
     QTest::keyClicks(titleEdit, "Test autosaveDelay 4");
     editEntryWidget->switchToPage(EditEntryWidget::Page::Main);
@@ -2044,7 +2023,7 @@ void TestGui::testAutoType()
     QVERIFY(entryNewWidget->isVisible());
     QVERIFY(entryNewWidget->isEnabled());
 
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
 
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
@@ -2079,7 +2058,7 @@ void TestGui::testAutoType()
     // 2. Create an entry with default/inherited Auto-Type sequence
 
     // 2.a) Click the new entry button and set the title
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
     QTest::keyClicks(titleEdit, "2. Entry With Default Auto-Type Sequence");
     QTest::mouseClick(usernameComboBox, Qt::LeftButton);
@@ -2098,7 +2077,7 @@ void TestGui::testAutoType()
     // 3. Create an entry with custom Auto-Type sequence
 
     // 3.a) Click the new entry button and set the title
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::EditEntryMode);
     QTest::keyClicks(titleEdit, "3. Entry With Custom Auto-Type Sequence");
     QTest::mouseClick(usernameComboBox, Qt::LeftButton);
@@ -2327,16 +2306,13 @@ void TestGui::testMenuActionStates()
 
 void TestGui::addCannedEntries()
 {
-    // Find buttons
-    auto* toolBar = m_mainWindow->findChild<QToolBar*>("toolBar");
-    QWidget* entryNewWidget = toolBar->widgetForAction(m_mainWindow->findChild<QAction*>("actionEntryNew"));
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
     auto* titleEdit = editEntryWidget->findChild<QLineEdit*>("titleEdit");
     auto* passwordEdit =
         editEntryWidget->findChild<PasswordWidget*>("passwordEdit")->findChild<QLineEdit*>("passwordEdit");
 
     // Add entry "test" and confirm added
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "test");
     auto* editEntryWidgetTagsEdit = editEntryWidget->findChild<TagsEdit*>("tagsList");
     editEntryWidgetTagsEdit->tags(QStringList() << "testTag");
@@ -2344,13 +2320,13 @@ void TestGui::addCannedEntries()
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
 
     // Add entry "something 2"
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "something 2");
     QTest::keyClicks(passwordEdit, "something 2");
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
 
     // Add entry "something 3"
-    triggerEntryNewAction(entryNewWidget);
+    triggerAction("actionEntryNew");
     QTest::keyClicks(titleEdit, "something 3");
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
 }
