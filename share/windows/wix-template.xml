@@ -51,12 +51,12 @@
             <RegistryValue Id="Autostart.rst" Root="HKCU" Action="write"
                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
                     Name="$(var.CPACK_PACKAGE_NAME)"
-                    Value="&quot;[#CM_FP_KeePassXC.exe]&quot;"
+                    Value="&quot;[#CM_FP_EasyCredentials.exe]&quot;"
                     Type="string" />
             <Condition>AUTOSTARTPROGRAM</Condition>
         </Component>
 
-        <!-- Add KeePassXC to PATH -->
+        <!-- Add EasyCredentials to PATH -->
         <Component Id="AddKeePassXCToPath" Guid="*" Directory="INSTALL_ROOT">
             <Condition>ADDTOPATH</Condition>
             <Environment Id="KeePassXCSystemPathEntryENV" Action="set" Part="last" Name="PATH" Value="[INSTALL_ROOT]" System="yes"/>
@@ -66,18 +66,18 @@
         <DirectoryRef Id="TARGETDIR">
             <!-- Startmenu shortcuts -->
             <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="KeePassXC">
+                <Directory Id="ApplicationProgramsFolder" Name="EasyCredentials">
                     <Component Id="ApplicationShortcuts" Guid="*">
                         <Shortcut Id="ApplicationStartMenuShortcut"
-                            Name="KeePassXC"
-                            Target="[#CM_FP_KeePassXC.exe]"
+                            Name="EasyCredentials"
+                            Target="[#CM_FP_EasyCredentials.exe]"
                             WorkingDirectory="INSTALL_ROOT"/>
                         <Shortcut Id="GettingStartedShortcut"
-                            Name="KeePassXC - Getting Started"
+                            Name="EasyCredentials - Getting Started"
                             Target="[#CM_FP_share.docs.KeePassXC_GettingStarted.html]"
                             WorkingDirectory="INSTALL_ROOT" />
                         <Shortcut Id="UserGuideShortcut"
-                            Name="KeePassXC - User Guide"
+                            Name="EasyCredentials - User Guide"
                             Target="[#CM_FP_share.docs.KeePassXC_UserGuide.html]"
                             WorkingDirectory="INSTALL_ROOT" />
                         <RemoveFile Id="RemoveShortcuts" Name="*.*" On="uninstall" />
@@ -93,10 +93,10 @@
                     <Condition>INSTALLDESKTOPSHORTCUT</Condition>
                     <Shortcut Id="ApplicationDesktopShortcut"
                         Directory="DesktopFolder"
-                        Name="KeePassXC"
-                        Target="[#CM_FP_KeePassXC.exe]"
+                        Name="EasyCredentials"
+                        Target="[#CM_FP_EasyCredentials.exe]"
                         WorkingDirectory="INSTALL_ROOT" />
-                    <RemoveFile Id="RemoveDesktopIcon" Name="KeePassXC.lnk" On="uninstall" />
+                    <RemoveFile Id="RemoveDesktopIcon" Name="EasyCredentials.lnk" On="uninstall" />
                     <RegistryValue Root="HKCU" Key="Software\KeePassXC" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes"/>
                 </Component>
             </Directory>
@@ -132,11 +132,11 @@
         </FeatureRef>
 
         <!-- Action to launch application after installer exits -->
-        <Property Id="WixShellExecTarget" Value="[#CM_FP_KeePassXC.exe]" />
+        <Property Id="WixShellExecTarget" Value="[#CM_FP_EasyCredentials.exe]" />
         <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
-        <!-- Action to kill running KeePassXC process -->
-        <Property Id="WixQuietExecCmdLine" Value='"[SystemFolder]taskkill.exe" /IM KeePassXC.exe' />
+        <!-- Action to kill running EasyCredentials process -->
+        <Property Id="WixQuietExecCmdLine" Value='"[SystemFolder]taskkill.exe" /IM EasyCredentials.exe' />
         <CustomAction Id="KillKeePassXC" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="immediate" Return="ignore" />
 
         <!-- Action to kill running keepassxc-proxy processes -->

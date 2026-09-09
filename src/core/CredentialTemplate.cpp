@@ -94,9 +94,9 @@ void CredentialTemplate::apply(Entry* entry, Type type)
         break;
     case Type::Database:
         entry->setTitle(QStringLiteral("Database"));
-        attributes->set(DatabaseTypeAttribute, {});
+        attributes->set(DatabaseTypeAttribute, QStringLiteral("MySQL"));
         attributes->set(HostAttribute, {});
-        attributes->set(PortAttribute, {});
+        attributes->set(PortAttribute, QStringLiteral("3306"));
         attributes->set(DatabaseNameAttribute, {});
         attributes->set(SslModeAttribute, {});
         break;

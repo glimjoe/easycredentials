@@ -12,15 +12,15 @@ EasyCredentials is a Windows-focused developer credential manager based on KeePa
 
 ## Compatibility boundary
 
-The first slice changes the visible application name and Windows product metadata, but deliberately keeps the existing executable name, configuration paths, IPC identifiers, browser integration identifiers, SSH Agent conventions, KeeShare format, and KDBX schema. This allows existing KeePassXC databases and settings to continue to work while the fork is still being established.
+The Windows preview uses the EasyCredentials name for the visible application, main executable, product metadata, and portable package. It deliberately keeps the existing configuration paths, IPC identifiers, browser integration identifiers, SSH Agent conventions, KeeShare format, command-line and proxy names, and KDBX schema. This allows existing KeePassXC databases and settings to continue to work while the fork is still being established.
 
-A later packaging milestone must give EasyCredentials its own executable, installer upgrade identity, configuration migration, native-messaging registration, and file-association policy before it is distributed alongside KeePassXC.
+A later installer milestone must give EasyCredentials its own installer upgrade identity, configuration migration, native-messaging registration, and file-association policy before an MSI is distributed alongside KeePassXC.
 
 ## Windows cloud build
 
 The `Windows build` GitHub Actions workflow builds the project with MSVC and vcpkg, runs the unit and GUI tests, and uploads an unsigned portable ZIP plus its SHA-256 file. It runs for pushes to `main` and `feature/**`, for pull requests, or manually from the repository's Actions page.
 
-The initial workflow intentionally does not publish an MSI. Until EasyCredentials has its own executable and installer upgrade identity, an MSI could conflict with an installed KeePassXC copy.
+The initial workflow intentionally does not publish an MSI. Until EasyCredentials has its own installer upgrade identity and migration policy, an MSI could conflict with an installed KeePassXC copy.
 
 ## License
 

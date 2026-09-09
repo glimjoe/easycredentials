@@ -95,9 +95,9 @@ void TestEntry::testCredentialTemplates()
     CredentialTemplate::apply(&database, CredentialTemplate::Type::Database);
     QCOMPARE(database.title(), QStringLiteral("Database"));
     QCOMPARE(CredentialTemplate::typeOf(&database), CredentialTemplate::Type::Database);
-    QVERIFY(database.attributes()->contains(CredentialTemplate::DatabaseTypeAttribute));
+    QCOMPARE(database.attributes()->value(CredentialTemplate::DatabaseTypeAttribute), QStringLiteral("MySQL"));
     QVERIFY(database.attributes()->contains(CredentialTemplate::HostAttribute));
-    QVERIFY(database.attributes()->contains(CredentialTemplate::PortAttribute));
+    QCOMPARE(database.attributes()->value(CredentialTemplate::PortAttribute), QStringLiteral("3306"));
     QVERIFY(database.attributes()->contains(CredentialTemplate::DatabaseNameAttribute));
     QVERIFY(database.attributes()->contains(CredentialTemplate::SslModeAttribute));
 

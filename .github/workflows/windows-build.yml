@@ -103,6 +103,25 @@ jobs:
           if (-not $package) {
               throw 'CPack did not create a ZIP package.'
           }
+          if ($package.Name -notlike 'EasyCredentials-*') {
+              throw "Unexpected package name: $($package.Name)"
+          }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+          try {
+              $mainExecutables = @($archive.Entries | Where-Object {
+                  [System.IO.Path]::GetFileName($_.FullName) -eq 'EasyCredentials.exe'
+              })
+              $legacyExecutables = @($archive.Entries | Where-Object {
+                  [System.IO.Path]::GetFileName($_.FullName) -eq 'KeePassXC.exe'
+              })
+              if ($mainExecutables.Count -ne 1 -or $legacyExecutables.Count -ne 0) {
+                  throw 'Portable package does not contain the expected EasyCredentials.exe application.'
+              }
+          } finally {
+              $archive.Dispose()
+          }
 
           $shortSha = $env:GITHUB_SHA.Substring(0, 7)
           $outputDirectory = Join-Path $env:GITHUB_WORKSPACE 'dist'

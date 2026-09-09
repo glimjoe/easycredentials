@@ -19,6 +19,7 @@
 #include "TestGui.h"
 #include "gui/Application.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QLineEdit>
@@ -728,20 +729,24 @@ void TestGui::testAddCredentialEntry()
     QVERIFY(credentialWidget->isVisible());
 
     auto* titleEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_title"));
+    auto* databaseTypeEdit =
+        credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_Database Type"));
     auto* hostEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_Host"));
     auto* portEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_Port"));
     auto* usernameEdit = credentialWidget->findChild<QLineEdit*>(QStringLiteral("credentialField_username"));
     auto* passwordEdit =
         credentialWidget->findChild<PasswordWidget*>(QStringLiteral("credentialPasswordField"));
     QVERIFY(titleEdit);
+    QVERIFY(databaseTypeEdit);
     QVERIFY(hostEdit);
     QVERIFY(portEdit);
     QVERIFY(usernameEdit);
     QVERIFY(passwordEdit);
+    QCOMPARE(databaseTypeEdit->text(), QStringLiteral("MySQL"));
+    QCOMPARE(portEdit->text(), QStringLiteral("3306"));
 
     titleEdit->setText(QStringLiteral("Local database"));
     hostEdit->setText(QStringLiteral("127.0.0.1"));
-    portEdit->setText(QStringLiteral("3306"));
     usernameEdit->setText(QStringLiteral("developer"));
     passwordEdit->setText(QStringLiteral("secret"));
 
@@ -753,8 +758,15 @@ void TestGui::testAddCredentialEntry()
     QCOMPARE(entry->title(), QStringLiteral("Local database"));
     QCOMPARE(entry->username(), QStringLiteral("developer"));
     QCOMPARE(entry->password(), QStringLiteral("secret"));
+    QCOMPARE(entry->attributes()->value(CredentialTemplate::DatabaseTypeAttribute), QStringLiteral("MySQL"));
     QCOMPARE(entry->attributes()->value(CredentialTemplate::HostAttribute), QStringLiteral("127.0.0.1"));
     QCOMPARE(entry->attributes()->value(CredentialTemplate::PortAttribute), QStringLiteral("3306"));
+
+    QAction copyDatabaseTypeAction;
+    copyDatabaseTypeAction.setData(CredentialTemplate::DatabaseTypeAttribute);
+    m_dbWidget->copyAttribute(&copyDatabaseTypeAction);
+    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("MySQL"));
+    QApplication::clipboard()->clear();
 }
 
 void TestGui::testPasswordEntryEntropy_data()
