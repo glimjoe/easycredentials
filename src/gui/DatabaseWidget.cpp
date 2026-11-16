@@ -38,6 +38,7 @@
 #include "gui/remote/RemoteHandler.h"
 #include "gui/remote/RemoteSettings.h"
 #include <QProgressDialog>
+#include <QScopeGuard>
 #include <QScopedValueRollback>
 #include <QSignalBlocker>
 #include "core/Tools.h"
@@ -1494,10 +1495,15 @@ bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
     }
 
     QScopedValueRollback<bool> syncing(m_remoteSyncInProgress, true);
+    auto* parentWindow = window();
+    const bool wasEnabled = parentWindow->isEnabled();
+    parentWindow->setEnabled(false);
+    const auto restoreWindow = qScopeGuard([parentWindow, wasEnabled] { parentWindow->setEnabled(wasEnabled); });
     QProgressDialog progress(tr("Downloading database…"), QString(), 0, 100, this);
     progress.setWindowTitle(tr("Remote Sync"));
     progress.setWindowModality(Qt::ApplicationModal);
     progress.setCancelButton(nullptr);
+    progress.setWindowFlag(Qt::WindowCloseButtonHint, false);
     progress.setMinimumDuration(0);
     progress.setValue(0);
 

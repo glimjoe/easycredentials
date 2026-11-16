@@ -18,7 +18,7 @@ SFTP is a suitable transport. Use a dedicated account that only has access to th
 
 ## Merge and failure behavior
 
-Synchronization downloads the remote file into a private temporary directory, opens it with the current database key, verifies the root-group identity, and merges both directions using the existing KeePassXC merger. The merged local database is saved before the merged transfer file is uploaded. Local changes are retained if uploading fails. A failed download, incompatible key, or unrelated database stops synchronization before either database is written. Temporary transfer files are removed when the operation finishes.
+Synchronization downloads the remote file into a private temporary directory, opens it with the current database key, verifies the root-group identity, and merges both directions using the existing KeePassXC merger. The merged local database is saved before the merged transfer file is uploaded. Local changes are retained if uploading fails. A failed download, incompatible key, or unrelated database stops synchronization before either database is written. Temporary transfer files are removed when the operation finishes. The application window remains disabled until the operation finishes, even if the progress dialog is dismissed.
 
 A configuration with an empty upload command downloads and merges into the local database only. Upload-only configurations are rejected because they cannot incorporate remote changes safely. Initial provisioning of an empty server should be done with your SFTP client or upload helper once, before using remote sync.
 

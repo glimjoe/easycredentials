@@ -20,9 +20,11 @@
 #include "keys/PasswordKey.h"
 
 #include <QFile>
+#include <QProgressDialog>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
+#include <QTimer>
 
 namespace
 {
@@ -233,6 +235,21 @@ private slots:
         QVERIFY(reopened->open(m_local, key()));
         QVERIFY(reopened->rootGroup()->findEntryByUuid(macId));
         QVERIFY(reopened->rootGroup()->findEntryByUuid(windowsId));
+    }
+
+    void testClosingProgressKeepsWindowProtected()
+    {
+        DatabaseWidget widget(m_db);
+        bool protectedAfterClose = false;
+        QTimer::singleShot(0, &widget, [&] {
+            auto* progress = widget.findChild<QProgressDialog*>();
+            QVERIFY(progress);
+            progress->close();
+            protectedAfterClose = !widget.window()->isEnabled();
+        });
+        QVERIFY(widget.syncWithRemote(transfer(m_remote)));
+        QVERIFY(protectedAfterClose);
+        QVERIFY(widget.window()->isEnabled());
     }
 
     void testInvalidRemote_data()
