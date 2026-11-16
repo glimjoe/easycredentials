@@ -35,6 +35,11 @@
 #include "core/CredentialTemplate.h"
 #include "core/EntrySearcher.h"
 #include "core/Merger.h"
+#include "gui/remote/RemoteHandler.h"
+#include "gui/remote/RemoteSettings.h"
+#include <QProgressDialog>
+#include <QScopedValueRollback>
+#include <QSignalBlocker>
 #include "core/Tools.h"
 #include "gui/Clipboard.h"
 #include "gui/CloneDialog.h"
@@ -1468,6 +1473,88 @@ void DatabaseWidget::switchToDatabaseReports()
     }
 }
 
+void DatabaseWidget::switchToRemoteSettings()
+{
+    switchToDatabaseSettings();
+    m_databaseSettingDialog->showRemoteSettings();
+}
+
+bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
+{
+    if (isLocked() || currentMode() != Mode::ViewMode || m_remoteSyncInProgress || m_reloading || m_db->isSaving()) {
+        return false;
+    }
+    if (m_db->filePath().isEmpty() || !QFileInfo(m_db->filePath()).isWritable()) {
+        showErrorMessage(tr("Save a writable local database before starting remote sync."));
+        return false;
+    }
+    if (params.downloadCommand.isEmpty()) {
+        showErrorMessage(tr("Remote sync requires a download command to merge remote changes safely."));
+        return false;
+    }
+
+    QScopedValueRollback<bool> syncing(m_remoteSyncInProgress, true);
+    QProgressDialog progress(tr("Downloading database…"), QString(), 0, 100, this);
+    progress.setWindowTitle(tr("Remote Sync"));
+    progress.setWindowModality(Qt::ApplicationModal);
+    progress.setCancelButton(nullptr);
+    progress.setMinimumDuration(0);
+    progress.setValue(0);
+
+    RemoteHandler handler(this);
+    auto result = handler.download(&params);
+    auto fail = [this, &progress, &params](const QString& error) {
+        progress.close();
+        showErrorMessage(tr("Remote sync '%1' failed: %2").arg(params.name, error));
+        return false;
+    };
+    if (!result.success) {
+        return fail(result.errorMessage);
+    }
+    auto remoteDb = QSharedPointer<Database>::create();
+    QString error;
+    if (!remoteDb->open(result.filePath, m_db->key(), &error)) {
+        return fail(tr("The downloaded database could not be unlocked with the current database key: %1").arg(error));
+    }
+    if (remoteDb->rootGroup()->uuid() != m_db->rootGroup()->uuid()) {
+        return fail(tr("The remote database is a different database. Check the download destination."));
+    }
+
+    progress.setLabelText(tr("Merging database changes…"));
+    progress.setValue(40);
+#ifdef WITH_XC_KEESHARE
+    KeeShare::instance()->setSharingEnabled(m_db, false);
+#endif
+    {
+        const QSignalBlocker blocker(m_db.data());
+        Merger firstMerge(m_db.data(), remoteDb.data());
+        Merger secondMerge(remoteDb.data(), m_db.data());
+        firstMerge.merge();
+        secondMerge.merge();
+    }
+#ifdef WITH_XC_KEESHARE
+    KeeShare::instance()->setSharingEnabled(m_db, true);
+#endif
+    emit databaseMerged(m_db);
+    if (!save()) {
+        return fail(tr("Could not save the merged local database. The remote database was not overwritten."));
+    }
+    if (!remoteDb->save(Database::Atomic, {}, &error)) {
+        return fail(tr("Could not save the merged transfer file: %1").arg(error));
+    }
+    if (!params.uploadCommand.isEmpty()) {
+        progress.setLabelText(tr("Uploading merged database…"));
+        progress.setValue(75);
+        auto uploaded = handler.upload(result.filePath, &params);
+        if (!uploaded.success) {
+            return fail(uploaded.errorMessage);
+        }
+    }
+    progress.setValue(100);
+    showMessage(tr("Remote sync '%1' completed successfully.").arg(params.name), MessageWidget::Positive, false);
+    return true;
+}
+
 void DatabaseWidget::switchToDatabaseSettings()
 {
     if (currentMode() != Mode::DatabaseSettingsMode) {
@@ -1881,6 +1968,11 @@ bool DatabaseWidget::focusNextPrevChild(bool next)
 
 bool DatabaseWidget::lock()
 {
+    if (m_remoteSyncInProgress) {
+        QTimer::singleShot(200, this, SLOT(lock()));
+        return false;
+    }
+
     if (isLocked() || m_attemptingLock) {
         return isLocked();
     }

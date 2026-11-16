@@ -45,6 +45,7 @@ class QSplitter;
 class QLabel;
 class EntryPreviewWidget;
 class TagView;
+struct RemoteParams;
 class ElidedLabel;
 
 namespace Ui
@@ -224,6 +225,8 @@ public slots:
     void switchToDatabaseSecurity();
     void switchToDatabaseReports();
     void switchToDatabaseSettings();
+    void switchToRemoteSettings();
+    bool syncWithRemote(const RemoteParams& params);
 #ifdef WITH_XC_BROWSER_PASSKEYS
     void switchToPasskeys();
     void showImportPasskeyDialog(bool isEntry = false);
@@ -317,6 +320,7 @@ private:
 
     int m_saveAttempts;
     bool m_attemptingLock = false;
+    bool m_remoteSyncInProgress = false;
 
     // Search state
     QScopedPointer<EntrySearcher> m_entrySearcher;

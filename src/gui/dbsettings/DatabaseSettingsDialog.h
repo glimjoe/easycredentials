@@ -37,6 +37,7 @@ class DatabaseSettingsWidgetKeeShare;
 #ifdef WITH_XC_FDOSECRETS
 class DatabaseSettingsWidgetFdoSecrets;
 #endif
+class DatabaseSettingsWidgetRemote;
 class DatabaseSettingsWidgetMaintenance;
 class QTabWidget;
 
@@ -51,6 +52,7 @@ public:
 
     void load(const QSharedPointer<Database>& db);
     void showDatabaseKeySettings(int index = 0);
+    void showRemoteSettings();
 
 signals:
     void editFinished(bool accepted);
@@ -75,6 +77,7 @@ private:
     QPointer<DatabaseSettingsWidgetFdoSecrets> m_fdoSecretsWidget;
 #endif
     QPointer<DatabaseSettingsWidgetMaintenance> m_maintenanceWidget;
+    QPointer<DatabaseSettingsWidgetRemote> m_remoteWidget;
 };
 
 #endif // KEEPASSXC_DATABASESETTINGSDIALOG_H

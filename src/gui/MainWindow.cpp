@@ -40,6 +40,7 @@
 #include "core/Resources.h"
 #include "core/Tools.h"
 #include "gui/AboutDialog.h"
+#include "gui/remote/RemoteSettings.h"
 #include "gui/Icons.h"
 #include "gui/MessageBox.h"
 #include "gui/SearchWidget.h"
@@ -547,6 +548,26 @@ MainWindow::MainWindow()
     connect(m_ui->actionDatabaseSaveBackup, SIGNAL(triggered()), m_ui->tabWidget, SLOT(saveDatabaseBackup()));
     connect(m_ui->actionDatabaseClose, SIGNAL(triggered()), m_ui->tabWidget, SLOT(closeCurrentDatabaseTab()));
     connect(m_ui->actionDatabaseMerge, SIGNAL(triggered()), m_ui->tabWidget, SLOT(mergeDatabase()));
+    connect(m_ui->menuRemoteSync, &QMenu::aboutToShow, this, [this] {
+        m_ui->menuRemoteSync->clear();
+        auto* dbWidget = m_ui->tabWidget->currentDatabaseWidget();
+        if (!dbWidget || dbWidget->isLocked()) {
+            return;
+        }
+        auto* setup = m_ui->menuRemoteSync->addAction(tr("Setup Remote Sync…"));
+        connect(setup, &QAction::triggered, dbWidget, &DatabaseWidget::switchToRemoteSettings);
+        RemoteSettings settings(dbWidget->database());
+        if (!settings.getAllRemoteParams().isEmpty()) {
+            m_ui->menuRemoteSync->addSeparator();
+        }
+        for (const auto* params : settings.getAllRemoteParams()) {
+            auto* action = m_ui->menuRemoteSync->addAction(params->name);
+            const auto remoteParams = *params;
+            connect(action, &QAction::triggered, dbWidget, [dbWidget, remoteParams] {
+                dbWidget->syncWithRemote(remoteParams);
+            });
+        }
+    });
     connect(m_ui->actionDatabaseSettings, SIGNAL(toggled(bool)), m_ui->tabWidget, SLOT(showDatabaseSettings(bool)));
     connect(m_ui->actionDatabaseSecurity, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showDatabaseSecurity()));
     connect(m_ui->actionReports, SIGNAL(toggled(bool)), m_ui->tabWidget, SLOT(showDatabaseReports(bool)));
@@ -1115,6 +1136,7 @@ void MainWindow::updateMenuActionState()
     m_ui->actionReports->setEnabled(inDatabase || inReports);
     m_ui->menuExport->setEnabled(inDatabase);
     m_ui->actionDatabaseMerge->setEnabled(inDatabase);
+    m_ui->menuRemoteSync->setEnabled(inDatabase);
 #ifdef WITH_XC_BROWSER_PASSKEYS
     m_ui->actionPasskeys->setEnabled(inDatabase || inReports);
     m_ui->actionImportPasskey->setEnabled(inDatabase);

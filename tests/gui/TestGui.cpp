@@ -111,7 +111,8 @@ void TestGui::init()
     config()->set(Config::AutoSaveOnExit, false);
     // Enable the tray icon so we can test hiding/restoring the windowQByteArray
     config()->set(Config::GUI_ShowTrayIcon, true);
-    // Disable the update check first time alert
+    // Disable update checks and their first-time alert during GUI tests
+    config()->set(Config::GUI_CheckForUpdates, false);
     config()->set(Config::UpdateCheckMessageShown, true);
     // Disable quick unlock
     config()->set(Config::Security_QuickUnlock, false);

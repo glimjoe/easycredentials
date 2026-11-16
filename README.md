@@ -39,6 +39,7 @@ EasyCredentials retains KeePassXC's core password-management capabilities and ad
 * Command line interface (keepassxc-cli)
 * Auto-Open databases
 * KeeShare shared databases (import, export, and synchronize)
+* Remote database synchronization using external download and upload commands ([setup and security](REMOTE_SYNC.md))
 * SSH Agent integration
 * FreeDesktop.org Secret Service (replace Gnome keyring, etc.)
 * Additional encryption choices: Twofish and ChaCha20

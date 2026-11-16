@@ -9,6 +9,7 @@ EasyCredentials is a Windows-focused developer credential manager based on KeePa
 - Store the template identifier and template-specific values as ordinary KDBX custom attributes.
 - Store SSH keys and certificate files as ordinary encrypted KDBX attachments, using the existing attachment import, preview, and export workflow.
 - Keep multiple databases independently unlockable; EasyCredentials does not force other databases to lock when one is opened.
+- Support manual remote database synchronization through external transfer commands, using KeePassXC 2.8-compatible encrypted settings. See [REMOTE_SYNC.md](REMOTE_SYNC.md) for setup, recovery, and concurrent-edit limitations.
 
 ## Compatibility boundary
 
