@@ -44,6 +44,7 @@ public:
         AutoSaveNonDataChanges,
         BackupBeforeSave,
         BackupFilePathPattern,
+        RemoteSyncLocalSettings,
         UseAtomicSaves,
         UseDirectWriteSaves,
         SearchLimitGroup,

@@ -14,17 +14,25 @@
 #include "gui/Application.h"
 #include "gui/DatabaseWidget.h"
 #include "gui/MainWindow.h"
+#include "gui/entry/EditEntryWidget.h"
 #include "gui/remote/RemoteHandler.h"
 #include "gui/remote/RemoteSettings.h"
+#include "gui/remote/DatabaseSettingsWidgetRemote.h"
 #include "keys/CompositeKey.h"
 #include "keys/PasswordKey.h"
 
 #include <QFile>
+#include <QDir>
 #include <QProgressDialog>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
 #include <QTimer>
+#include <QSignalSpy>
+#include <QCheckBox>
+#include <QSpinBox>
+#include <QLineEdit>
+#include <QPushButton>
 
 namespace
 {
@@ -67,11 +75,24 @@ namespace
     {
         const auto action = args.value(2);
         if (action == "copy") {
+            if (!args.value(5).isEmpty()) {
+                QFile counter(args.value(5));
+                if (!counter.open(QIODevice::Append) || counter.write("upload\n") != 7) {
+                    return 11;
+                }
+            }
             QFile::remove(args.value(4));
             return QFile::copy(args.value(3), args.value(4)) ? 0 : 7;
         }
         if (action == "fail") {
             return 7;
+        }
+        if (action == "copy-when-online") {
+            if (!QFile::exists(args.value(5))) {
+                return 7;
+            }
+            QFile::remove(args.value(4));
+            return QFile::copy(args.value(3), args.value(4)) ? 0 : 7;
         }
         if (action == "sleep") {
             QThread::msleep(5000);
@@ -154,6 +175,245 @@ private slots:
             QCOMPARE(contents(path), contents(m_remote));
         }
         QVERIFY(!QFile::exists(path));
+    }
+
+    void testAutomaticApprovalIsLocalAndInvalidatedByCommandChanges()
+    {
+        const auto params = transfer(m_remote);
+        enableAutomatic(params);
+        RemoteSettings restored(m_db);
+        QVERIFY(restored.automaticSyncParams());
+        QCOMPARE(restored.automaticSyncIntervalMinutes(), 1);
+        QVERIFY(!m_db->metadata()->customData()->value(CustomData::RemoteProgramSettings).contains("commandHash"));
+
+        const auto otherPath = m_directory->filePath("another device.kdbx");
+        QVERIFY(QFile::copy(m_local, otherPath));
+        auto other = QSharedPointer<Database>::create();
+        QVERIFY(other->open(otherPath, key()));
+        QVERIFY(!RemoteSettings(other).automaticSyncParams());
+
+        auto changed = params;
+        changed.downloadInput = "unreviewed command input";
+        restored.addRemoteParams(new RemoteParams(changed));
+        restored.saveSettings();
+        QVERIFY(!RemoteSettings(m_db).automaticSyncParams());
+    }
+
+    void testAutomaticSyncBeforeEditingUsesRemoteEntry()
+    {
+        const auto entries = m_db->rootGroup()->entriesRecursive();
+        QVERIFY(!entries.isEmpty());
+        const auto id = entries.first()->uuid();
+        enableAutomatic(transfer(m_remote));
+        auto remote = QSharedPointer<Database>::create();
+        QVERIFY(remote->open(m_remote, key()));
+        remote->rootGroup()->findEntryByUuid(id)->setTitle("Updated on another device");
+        QVERIFY(remote->save());
+
+        DatabaseWidget widget(m_db);
+        auto* previous = m_db->rootGroup()->findEntryByUuid(id);
+        QVERIFY(QMetaObject::invokeMethod(&widget, "switchToEntryEdit", Qt::DirectConnection,
+                                         Q_ARG(Entry*, previous)));
+        QCOMPARE(widget.currentMode(), DatabaseWidget::Mode::EditEntryMode);
+        auto* editor = widget.findChild<EditEntryWidget*>("editEntryWidget");
+        QVERIFY(editor);
+        QCOMPARE(editor->currentEntry()->title(), QString("Updated on another device"));
+    }
+
+    void testFailedPreEditDownloadDoesNotEnterEditor()
+    {
+        auto params = transfer(m_remote);
+        params.downloadCommand = command({"fail"});
+        enableAutomatic(params);
+        const auto beforeLocal = contents(m_local);
+        const auto beforeRemote = contents(m_remote);
+        DatabaseWidget widget(m_db);
+        widget.createEntry();
+        QCOMPARE(widget.currentMode(), DatabaseWidget::Mode::ViewMode);
+        QCOMPARE(contents(m_local), beforeLocal);
+        QCOMPARE(contents(m_remote), beforeRemote);
+    }
+
+    void testSavingAutomaticallyMergesUploadsOnce()
+    {
+        auto params = transfer(m_remote);
+        const auto counter = m_directory->filePath("upload count.txt");
+        params.uploadCommand = command({"copy", "{TEMP_DATABASE}", m_remote, counter});
+        enableAutomatic(params);
+        auto remote = QSharedPointer<Database>::create();
+        QVERIFY(remote->open(m_remote, key()));
+        const auto remoteId = addEntry(remote, "Remote pending change")->uuid();
+        QVERIFY(remote->save());
+
+        DatabaseWidget widget(m_db);
+        const auto localId = addEntry(m_db, "Local saved change")->uuid();
+        QVERIFY(widget.save());
+        QVERIFY(RemoteSettings(m_db).hasPendingUpload());
+        QTRY_VERIFY_WITH_TIMEOUT(!RemoteSettings(m_db).hasPendingUpload(), 5000);
+        auto uploaded = QSharedPointer<Database>::create();
+        QVERIFY(uploaded->open(m_remote, key()));
+        QVERIFY(uploaded->rootGroup()->findEntryByUuid(localId));
+        QVERIFY(uploaded->rootGroup()->findEntryByUuid(remoteId));
+        QVERIFY(m_db->rootGroup()->findEntryByUuid(remoteId));
+        QTest::qWait(600);
+        QCOMPARE(contents(counter), QByteArray("upload\n"));
+    }
+
+    void testPeriodicRefreshSkipsUnsavedAndPendingLocalChanges()
+    {
+        enableAutomatic(transfer(m_remote));
+        DatabaseWidget widget(m_db);
+        const auto localId = addEntry(m_db, "Not uploaded yet")->uuid();
+        const auto beforeLocal = contents(m_local);
+        const auto beforeRemote = contents(m_remote);
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteSyncTimeout", Qt::DirectConnection));
+        QCOMPARE(contents(m_local), beforeLocal);
+        QCOMPARE(contents(m_remote), beforeRemote);
+        QVERIFY(m_db->rootGroup()->findEntryByUuid(localId));
+
+        QVERIFY(widget.save());
+        QVERIFY(RemoteSettings(m_db).hasPendingUpload());
+        const auto savedLocal = contents(m_local);
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteSyncTimeout", Qt::DirectConnection));
+        QCOMPARE(contents(m_local), savedLocal);
+        QCOMPARE(contents(m_remote), beforeRemote);
+    }
+
+    void testPeriodicPullPreservesEncryptedHistoryAndDoesNotUpload()
+    {
+        enableAutomatic(transfer(m_remote));
+        DatabaseWidget widget(m_db);
+        QSignalSpy merged(&widget, &DatabaseWidget::databaseMerged);
+        auto remote = QSharedPointer<Database>::create();
+        QVERIFY(remote->open(m_remote, key()));
+        const auto remoteId = addEntry(remote, "Periodic update")->uuid();
+        QVERIFY(remote->save());
+        const auto beforeRemote = contents(m_remote);
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteSyncTimeout", Qt::DirectConnection));
+        QVERIFY(m_db->rootGroup()->findEntryByUuid(remoteId));
+        QCOMPARE(merged.count(), 1);
+        QVERIFY(!RemoteSettings(m_db).hasPendingUpload());
+        QCOMPARE(contents(m_remote), beforeRemote);
+        const auto history = QDir(m_directory->filePath("backups")).entryList({"*.kdbx"}, QDir::Files);
+        QVERIFY(!history.isEmpty());
+        auto previous = QSharedPointer<Database>::create();
+        QVERIFY(previous->open(m_directory->filePath("backups/") + history.first(), key()));
+        QVERIFY(!previous->rootGroup()->findEntryByUuid(remoteId));
+        const auto afterRefresh = contents(m_local);
+        QTest::qWait(600);
+        QCOMPARE(contents(m_local), afterRefresh);
+        QCOMPARE(contents(m_remote), beforeRemote);
+    }
+
+    void testUploadFailureRemainsPendingAcrossLock()
+    {
+        auto params = transfer(m_remote);
+        params.uploadCommand = command({"fail"});
+        enableAutomatic(params);
+        DatabaseWidget widget(m_db);
+        const auto localId = addEntry(m_db, "Offline saved change")->uuid();
+        QVERIFY(widget.save());
+        const auto beforeRemote = contents(m_remote);
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteUploadTimeout", Qt::DirectConnection));
+        QVERIFY(RemoteSettings(m_db).hasPendingUpload());
+        QVERIFY(widget.lock());
+        QTest::qWait(400);
+        QCOMPARE(contents(m_remote), beforeRemote);
+        auto reopened = QSharedPointer<Database>::create();
+        QVERIFY(reopened->open(m_local, key()));
+        QVERIFY(reopened->rootGroup()->findEntryByUuid(localId));
+        QVERIFY(RemoteSettings(reopened).hasPendingUpload());
+    }
+
+    void testHistoryFailureBlocksSave()
+    {
+        enableAutomatic(transfer(m_remote));
+        QFile blocker(m_directory->filePath("backups"));
+        QVERIFY(blocker.open(QIODevice::WriteOnly));
+        blocker.close();
+        DatabaseWidget widget(m_db);
+        const auto beforeLocal = contents(m_local);
+        const auto beforeRemote = contents(m_remote);
+        const auto id = addEntry(m_db, "Keep unsaved edit")->uuid();
+        QVERIFY(!widget.save());
+        QCOMPARE(contents(m_local), beforeLocal);
+        QCOMPARE(contents(m_remote), beforeRemote);
+        QVERIFY(m_db->rootGroup()->findEntryByUuid(id));
+        QVERIFY(m_db->isModified());
+    }
+
+    void testOfflineUploadRetriesMergeBeforeUploading()
+    {
+        auto params = transfer(m_remote);
+        const auto onlinePath = m_directory->filePath("connection is online");
+        params.uploadCommand = command({"copy-when-online", "{TEMP_DATABASE}", m_remote, onlinePath});
+        enableAutomatic(params);
+        DatabaseWidget widget(m_db);
+        const auto localId = addEntry(m_db, "Saved during outage")->uuid();
+        QVERIFY(widget.save());
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteUploadTimeout", Qt::DirectConnection));
+        QVERIFY(RemoteSettings(m_db).hasPendingUpload());
+        auto* retry = widget.findChild<QTimer*>("remoteUploadTimer");
+        QVERIFY(retry && retry->isActive());
+        QCOMPARE(retry->interval(), 60000);
+
+        auto remote = QSharedPointer<Database>::create();
+        QVERIFY(remote->open(m_remote, key()));
+        const auto remoteId = addEntry(remote, "Another device changed during outage")->uuid();
+        QVERIFY(remote->save());
+        QFile online(onlinePath);
+        QVERIFY(online.open(QIODevice::WriteOnly));
+        online.close();
+        QVERIFY(QMetaObject::invokeMethod(&widget, "onRemoteUploadTimeout", Qt::DirectConnection));
+        QVERIFY(!RemoteSettings(m_db).hasPendingUpload());
+        auto uploaded = QSharedPointer<Database>::create();
+        QVERIFY(uploaded->open(m_remote, key()));
+        QVERIFY(uploaded->rootGroup()->findEntryByUuid(localId));
+        QVERIFY(uploaded->rootGroup()->findEntryByUuid(remoteId));
+    }
+
+    void testAutomaticSettingsUiRequiresLocalOptIn()
+    {
+        DatabaseSettingsWidgetRemote page;
+        page.loadSettings(m_db);
+        auto* enabled = page.findChild<QCheckBox*>("automaticSyncCheckBox");
+        auto* interval = page.findChild<QSpinBox*>("syncIntervalMinutes");
+        QVERIFY(enabled && interval);
+        QVERIFY(!enabled->isChecked());
+        QCOMPARE(interval->value(), 5);
+        page.findChild<QLineEdit*>("nameLineEdit")->setText("VPS Mac");
+        page.findChild<QLineEdit*>("downloadCommand")->setText(command({"copy", m_remote, "{TEMP_DATABASE}"}));
+        page.findChild<QLineEdit*>("uploadCommand")->setText(command({"copy", "{TEMP_DATABASE}", m_remote}));
+        enabled->setChecked(true);
+        interval->setValue(2);
+        page.findChild<QPushButton*>("saveSettingsButton")->click();
+        QVERIFY(page.saveSettings());
+        RemoteSettings restored(m_db);
+        QVERIFY(restored.automaticSyncParams());
+        QCOMPARE(restored.automaticSyncParams()->name, QString("VPS Mac"));
+        QCOMPARE(restored.automaticSyncIntervalMinutes(), 2);
+        QVERIFY(restored.hasPendingUpload());
+    }
+
+    void testHistoryRetentionKeepsOtherDatabaseBackups()
+    {
+        enableAutomatic(transfer(m_remote));
+        DatabaseWidget widget(m_db);
+        QVERIFY(widget.save());
+        QDir history(m_directory->filePath("backups"));
+        const auto files = history.entryList({"*.kdbx"}, QDir::Files);
+        QCOMPARE(files.size(), 1);
+        const auto name = files.first();
+        const int marker = name.lastIndexOf(".autosync-");
+        const auto prefix = name.left(name.indexOf('-', marker + 10) + 1);
+        for (int i = 0; i < 105; ++i) {
+            QVERIFY(QFile::copy(m_local, history.filePath(prefix + QString::number(i) + ".kdbx")));
+        }
+        const auto unrelated = history.filePath("other-database-backup.kdbx");
+        QVERIFY(QFile::copy(m_local, unrelated));
+        QVERIFY(widget.save());
+        QVERIFY(QFile::exists(unrelated));
+        QCOMPARE(history.entryList({prefix + "*.kdbx"}, QDir::Files).size(), 100);
     }
 
     void testStandardInputAndEndOfFile()
@@ -279,6 +539,20 @@ private slots:
     }
 
 private:
+    void enableAutomatic(const RemoteParams& params)
+    {
+        RemoteSettings settings(m_db);
+        settings.addRemoteParams(new RemoteParams(params));
+        settings.setAutomaticSync(params.name, 1);
+        settings.saveSettings();
+        QVERIFY(settings.automaticSyncParams());
+        QVERIFY(m_db->save());
+        // Establish an already-synchronized fixture before exercising a particular automatic trigger.
+        QVERIFY(QFile::remove(m_remote));
+        QVERIFY(QFile::copy(m_local, m_remote));
+        settings.setPendingUpload(false);
+    }
+
     static Entry* addEntry(const QSharedPointer<Database>& database, const QString& title)
     {
         auto* entry = new Entry();

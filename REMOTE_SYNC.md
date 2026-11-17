@@ -8,6 +8,19 @@ EasyCredentials backports the command-based remote sync interface from KeePassXC
 4. Set a timeout that allows the connection and transfer to finish, for example 60 seconds for an Internet connection. Save the configuration, accept the database settings, and save your local database.
 5. Select the configuration from **Database → Remote Sync**.
 
+## Automatic synchronization
+
+On the device that will run the commands, edit the appropriate profile, enable **Automatically sync this profile on this device**, and choose a refresh interval (5 minutes by default). Click the profile's **Save**, accept the database settings, then save the database. Both download and upload commands are required for automatic synchronization.
+
+Only one profile per database can run automatically on a device. Approval and the interval are stored locally, independently of the encrypted profiles shared with other computers. Receiving a profile from another device does not enable automatic command execution. Changes to the approved transfer commands, their input, or timeouts disable automatic execution until the profile is reviewed and enabled again locally.
+
+- Unlocking refreshes the database. Opening an entry or group editor (or creating/cloning one) first downloads and merges remote changes. If this fails, editing is paused; the database can still be viewed. Disable automatic sync to deliberately edit offline.
+- A successful local save queues a full download/merge/upload after the save has finished. Internal synchronization saves do not trigger another upload. Upload failure leaves a persistent pending flag and retries the full merge workflow at the configured interval while unlocked and idle. Saving again, manually synchronizing, or unlocking later also retries. Unsaved edits pause the retry until they are saved.
+- Periodic refresh runs only while the database is unlocked, in the main view, and has no unsaved or pending upload changes. It downloads and merges without uploading. Editing, settings, locking, saving, and another synchronization defer the refresh. Locked databases resume after unlocking; no master password is stored for background synchronization.
+- Automatic saves and remote merges preserve encrypted history under the database's `backups` directory. The latest 100 history files for that database are retained; unrelated backups are not removed. A history backup failure stops the save/merge instead of overwriting the previous file. An unchanged periodic download does not rewrite the local database.
+
+Automatic synchronization still transfers whole KDBX files. It does not add a server-side lock or atomic multi-device transaction: two devices synchronizing simultaneously can still race. Local history does not replace an independent offline backup.
+
 The commands and input use the same `KPXC_REMOTE_SYNC_SETTINGS` metadata key and JSON fields as KeePassXC 2.8. Configurations stay inside the encrypted database. A shared database can contain separate Windows and macOS configurations with the appropriate local paths for each device.
 
 ## Transfer commands
@@ -28,6 +41,6 @@ Both databases must use the same master password, key file, and hardware-key con
 
 The server stores encrypted KDBX files. It does not need the database master password or the key file used to unlock the database. Use a strong, unique master password and retain a separate offline backup. Store any database key file outside the synchronized server directory.
 
-Run only configurations you created or reviewed: transfer commands execute with your operating-system account's privileges. Synchronization is manual and does not automatically execute commands when a database is opened.
+Run only configurations you created or reviewed: transfer commands execute with your operating-system account's privileges. Profiles are manual by default; automatic execution requires explicit approval on each device as described above.
 
 The complete download/merge/upload operation is not an atomic transaction. If two devices synchronize simultaneously, one upload can overwrite changes uploaded by the other after its download. Synchronize before editing and again after saving, and wait for one device's operation to finish before starting on the other. Keep server-side version history outside the transfer account's permissions so accidental overwrites and deletions can be recovered. Remote replacement by rename protects against partial uploads, but does not eliminate this concurrency limitation.

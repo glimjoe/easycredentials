@@ -21,6 +21,7 @@
 #include <QHash>
 #include <QObject>
 #include <QSharedPointer>
+#include <QVariant>
 
 class Database;
 
@@ -50,15 +51,28 @@ public:
     RemoteParams* getRemoteParams(const QString& name) const;
     QList<RemoteParams*> getAllRemoteParams() const;
 
+    // Automatic command execution requires approval on this device, never just shared database metadata.
+    const RemoteParams* automaticSyncParams() const;
+    int automaticSyncIntervalMinutes() const;
+    void setAutomaticSync(const QString& name, int intervalMinutes = 5);
+    bool hasPendingUpload() const;
+    void setPendingUpload(bool pending) const;
+
     void loadSettings();
     void saveSettings() const;
 
 private:
     void fromConfig(const QString& data);
+    QString localSettingsKey() const;
+    QVariantMap localSettings() const;
+    static QString commandHash(const RemoteParams& params);
     QString toConfig() const;
 
     QHash<QString, RemoteParams*> m_remoteParams;
     QSharedPointer<Database> m_db;
+    QString m_automaticSyncName;
+    QString m_approvedCommandHash;
+    int m_automaticSyncIntervalMinutes = 5;
 };
 
 #endif // KEEPASSXC_REMOTESETTINGS_H

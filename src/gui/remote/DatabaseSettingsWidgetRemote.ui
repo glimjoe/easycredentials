@@ -22,7 +22,7 @@
     <height>0</height>
    </size>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,3">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,3,0">
    <property name="leftMargin">
     <number>0</number>
    </property>
@@ -288,6 +288,34 @@ The command has to exit. In case of `sftp` as last command `exit` has to be sent
         </item>
        </layout>
       </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="automaticSyncGroupBox">
+     <property name="title"><string>Automatic Sync</string></property>
+     <layout class="QVBoxLayout" name="automaticSyncLayout">
+      <item>
+       <widget class="QCheckBox" name="automaticSyncCheckBox">
+        <property name="text"><string>Automatically sync this profile on this device</string></property>
+        <property name="toolTip"><string>Pull and merge before editing, sync after saving, and refresh periodically while unlocked. Only one profile per database can run automatically on this device.</string></property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="automaticSyncIntervalLayout">
+        <item><widget class="QLabel" name="syncIntervalLabel"><property name="text"><string>Check for updates every:</string></property></widget></item>
+        <item><widget class="QSpinBox" name="syncIntervalMinutes">
+         <property name="minimum"><number>1</number></property>
+         <property name="maximum"><number>1440</number></property>
+         <property name="value"><number>5</number></property>
+         <property name="suffix"><string> minutes</string></property>
+        </widget></item>
+       </layout>
+      </item>
+      <item><widget class="QLabel" name="automaticSyncBackupLabel">
+       <property name="text"><string>Pending local changes pause periodic refresh. The latest 100 encrypted local history files are kept in the database's backups folder.</string></property>
+       <property name="wordWrap"><bool>true</bool></property>
+      </widget></item>
      </layout>
     </widget>
    </item>

@@ -52,6 +52,8 @@ DatabaseSettingsWidgetRemote::DatabaseSettingsWidgetRemote(QWidget* parent)
     connect(m_ui->uploadCommand, &QLineEdit::textChanged, setModified);
     connect(m_ui->inputForUpload, &QPlainTextEdit::textChanged, setModified);
     connect(m_ui->uploadTimeoutSec, QOverload<int>::of(&QSpinBox::valueChanged), setModified);
+    connect(m_ui->automaticSyncCheckBox, &QCheckBox::toggled, setModified);
+    connect(m_ui->syncIntervalMinutes, QOverload<int>::of(&QSpinBox::valueChanged), setModified);
 }
 
 DatabaseSettingsWidgetRemote::~DatabaseSettingsWidgetRemote() = default;
@@ -105,6 +107,11 @@ void DatabaseSettingsWidgetRemote::saveCurrentSettings()
 
     const auto download = m_ui->downloadCommand->text();
     const auto upload = m_ui->uploadCommand->text();
+    if (m_ui->automaticSyncCheckBox->isChecked() && upload.isEmpty()) {
+        m_ui->messageWidget->showMessage(tr("Automatic sync requires both download and upload commands."),
+                                        MessageWidget::Warning);
+        return;
+    }
     if (download.isEmpty() || !(download + m_ui->inputForDownload->toPlainText()).contains("{TEMP_DATABASE}")
         || (!upload.isEmpty() && !(upload + m_ui->inputForUpload->toPlainText()).contains("{TEMP_DATABASE}"))) {
         m_ui->messageWidget->showMessage(
@@ -122,7 +129,14 @@ void DatabaseSettingsWidgetRemote::saveCurrentSettings()
     params->uploadInput = m_ui->inputForUpload->toPlainText();
     params->uploadTimeoutMsec = m_ui->uploadTimeoutSec->value() * 1000;
 
+    const auto* automatic = m_remoteSettings->automaticSyncParams();
+    const QString automaticName = automatic ? automatic->name : QString();
     m_remoteSettings->addRemoteParams(params);
+    if (m_ui->automaticSyncCheckBox->isChecked()) {
+        m_remoteSettings->setAutomaticSync(name, m_ui->syncIntervalMinutes->value());
+    } else if (automaticName == name) {
+        m_remoteSettings->setAutomaticSync({});
+    }
     updateSettingsList();
 
     auto item = findItemByName(name);
@@ -168,6 +182,9 @@ void DatabaseSettingsWidgetRemote::editCurrentSettings()
     m_ui->uploadCommand->setText(params->uploadCommand);
     m_ui->inputForUpload->setPlainText(params->uploadInput);
     m_ui->uploadTimeoutSec->setValue(params->uploadTimeoutMsec / 1000);
+    const auto* automatic = m_remoteSettings->automaticSyncParams();
+    m_ui->automaticSyncCheckBox->setChecked(automatic && automatic->name == name);
+    m_ui->syncIntervalMinutes->setValue(m_remoteSettings->automaticSyncIntervalMinutes());
     m_modified = false;
 }
 
@@ -190,6 +207,8 @@ void DatabaseSettingsWidgetRemote::clearFields()
     m_ui->uploadCommand->setText("");
     m_ui->inputForUpload->setPlainText("");
     m_ui->uploadTimeoutSec->setValue(10);
+    m_ui->automaticSyncCheckBox->setChecked(false);
+    m_ui->syncIntervalMinutes->setValue(5);
     m_modified = false;
 }
 

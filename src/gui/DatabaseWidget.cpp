@@ -22,6 +22,9 @@
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QDesktopServices>
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
 #include <QHostInfo>
 #include <QInputDialog>
 #include <QKeyEvent>
@@ -240,6 +243,23 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     m_autosaveTimer->setSingleShot(true);
     connect(m_autosaveTimer, SIGNAL(timeout()), this, SLOT(onAutosaveDelayTimeout()));
 
+    m_remoteSyncTimer = new QTimer(this);
+    m_remoteSyncTimer->setObjectName("remoteSyncTimer");
+    connect(m_remoteSyncTimer, &QTimer::timeout, this, &DatabaseWidget::onRemoteSyncTimeout);
+    m_remoteUploadTimer = new QTimer(this);
+    m_remoteUploadTimer->setObjectName("remoteUploadTimer");
+    m_remoteUploadTimer->setSingleShot(true);
+    connect(m_remoteUploadTimer, &QTimer::timeout, this, &DatabaseWidget::onRemoteUploadTimeout);
+    connect(this, &DatabaseWidget::databaseUnlocked, this, [this] {
+        configureAutomaticSync();
+        QTimer::singleShot(0, this, &DatabaseWidget::onRemoteSyncTimeout);
+    });
+    connect(this, &DatabaseWidget::currentModeChanged, this, [this](Mode mode) {
+        if (mode == Mode::LockedMode || mode == Mode::ViewMode) {
+            configureAutomaticSync();
+        }
+    });
+
     m_searchLimitGroup = config()->get(Config::SearchLimitGroup).toBool();
 
 #ifdef WITH_XC_KEESHARE
@@ -252,6 +272,10 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
         switchToMainView();
     } else {
         switchToOpenDatabase();
+    }
+    configureAutomaticSync();
+    if (RemoteSettings(m_db).automaticSyncParams()) {
+        QTimer::singleShot(0, this, &DatabaseWidget::onRemoteSyncTimeout);
     }
 }
 
@@ -471,6 +495,9 @@ void DatabaseWidget::createEntry()
 
 void DatabaseWidget::createEntry(CredentialTemplate::Type type)
 {
+    if (!prepareForRemoteEdit()) {
+        return;
+    }
     Q_ASSERT(m_groupView->currentGroup());
     if (!m_groupView->currentGroup()) {
         return;
@@ -528,6 +555,9 @@ void DatabaseWidget::replaceDatabase(QSharedPointer<Database> db)
 
 void DatabaseWidget::cloneEntry()
 {
+    if (!prepareForRemoteEdit()) {
+        return;
+    }
     auto currentEntry = currentSelectedEntry();
     Q_ASSERT(currentEntry);
     if (!currentEntry) {
@@ -1097,6 +1127,9 @@ Entry* DatabaseWidget::currentSelectedEntry() const
 
 void DatabaseWidget::createGroup()
 {
+    if (!prepareForRemoteEdit()) {
+        return;
+    }
     Q_ASSERT(m_groupView->currentGroup());
     if (!m_groupView->currentGroup()) {
         return;
@@ -1110,6 +1143,9 @@ void DatabaseWidget::createGroup()
 
 void DatabaseWidget::cloneGroup()
 {
+    if (!prepareForRemoteEdit()) {
+        return;
+    }
     Group* currentGroup = m_groupView->currentGroup();
     Q_ASSERT(currentGroup && canCloneCurrentGroup());
     if (!currentGroup || !canCloneCurrentGroup()) {
@@ -1168,6 +1204,7 @@ int DatabaseWidget::addChildWidget(QWidget* w)
 
 void DatabaseWidget::switchToMainView(bool previousDialogAccepted)
 {
+    const bool wasSettings = currentMode() == Mode::DatabaseSettingsMode;
     setCurrentWidget(m_mainWidget);
 
     if (m_newGroup) {
@@ -1194,6 +1231,10 @@ void DatabaseWidget::switchToMainView(bool previousDialogAccepted)
         // Workaround: ensure entries are focused so search doesn't reset
         m_entryView->setFocus();
     }
+    if (wasSettings) {
+        configureAutomaticSync();
+        QTimer::singleShot(0, this, &DatabaseWidget::onRemoteSyncTimeout);
+    }
 }
 
 void DatabaseWidget::switchToHistoryView(Entry* entry)
@@ -1215,6 +1256,17 @@ void DatabaseWidget::switchToEntryEdit(Entry* entry)
 
 void DatabaseWidget::switchToEntryEdit(Entry* entry, bool create)
 {
+    if (!create) {
+        const auto id = entry->uuid();
+        if (!prepareForRemoteEdit()) {
+            return;
+        }
+        entry = m_db->rootGroup()->findEntryByUuid(id);
+        if (!entry) {
+            showErrorMessage(tr("This entry was removed remotely. Select another entry."));
+            return;
+        }
+    }
     // If creating an entry, it will be in `currentGroup()` so it's
     // okay to use but when editing, the entry may not be in
     // `currentGroup()` so we get the entry's group.
@@ -1236,6 +1288,17 @@ void DatabaseWidget::switchToEntryEdit(Entry* entry, bool create)
 
 void DatabaseWidget::switchToGroupEdit(Group* group, bool create)
 {
+    if (!create) {
+        const auto id = group->uuid();
+        if (!prepareForRemoteEdit()) {
+            return;
+        }
+        group = m_db->rootGroup()->findGroupByUuid(id);
+        if (!group) {
+            showErrorMessage(tr("This group was removed remotely. Select another group."));
+            return;
+        }
+    }
     m_editGroupWidget->loadGroup(group, create, m_db);
     setCurrentWidget(m_editGroupWidget);
 }
@@ -1495,6 +1558,7 @@ bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
     }
 
     QScopedValueRollback<bool> syncing(m_remoteSyncInProgress, true);
+    m_remoteUploadTimer->stop();
     auto* parentWindow = window();
     const bool wasEnabled = parentWindow->isEnabled();
     parentWindow->setEnabled(false);
@@ -1511,6 +1575,12 @@ bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
     auto result = handler.download(&params);
     auto fail = [this, &progress, &params](const QString& error) {
         progress.close();
+        RemoteSettings settings(m_db);
+        const auto* automatic = settings.automaticSyncParams();
+        if (automatic && automatic->name == params.name && settings.hasPendingUpload()
+            && automatic->uploadCommand == params.uploadCommand) {
+            m_remoteUploadTimer->start(settings.automaticSyncIntervalMinutes() * 60 * 1000);
+        }
         showErrorMessage(tr("Remote sync '%1' failed: %2").arg(params.name, error));
         return false;
     };
@@ -1526,23 +1596,31 @@ bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
         return fail(tr("The remote database is a different database. Check the download destination."));
     }
 
+    // Preserve unsaved local edits on disk before merging, so the next history snapshot includes them.
+    if (m_db->isModified() && !save()) {
+        return fail(tr("Could not preserve local changes before merging. The remote database was not overwritten."));
+    }
+
     progress.setLabelText(tr("Merging database changes…"));
     progress.setValue(40);
 #ifdef WITH_XC_KEESHARE
     KeeShare::instance()->setSharingEnabled(m_db, false);
 #endif
+    bool localChanged = false;
     {
         const QSignalBlocker blocker(m_db.data());
         Merger firstMerge(m_db.data(), remoteDb.data());
         Merger secondMerge(remoteDb.data(), m_db.data());
         firstMerge.merge();
-        secondMerge.merge();
+        localChanged = !secondMerge.merge().isEmpty();
     }
 #ifdef WITH_XC_KEESHARE
     KeeShare::instance()->setSharingEnabled(m_db, true);
 #endif
-    emit databaseMerged(m_db);
-    if (!save()) {
+    if (localChanged) {
+        emit databaseMerged(m_db);
+    }
+    if ((localChanged || m_db->isModified()) && !save()) {
         return fail(tr("Could not save the merged local database. The remote database was not overwritten."));
     }
     if (!remoteDb->save(Database::Atomic, {}, &error)) {
@@ -1553,11 +1631,104 @@ bool DatabaseWidget::syncWithRemote(const RemoteParams& params)
         progress.setValue(75);
         auto uploaded = handler.upload(result.filePath, &params);
         if (!uploaded.success) {
+            RemoteSettings settings(m_db);
+            const auto* automatic = settings.automaticSyncParams();
+            if (automatic && automatic->name == params.name) {
+                settings.setPendingUpload(true);
+            }
             return fail(uploaded.errorMessage);
+        }
+        RemoteSettings settings(m_db);
+        const auto* automatic = settings.automaticSyncParams();
+        if (automatic && automatic->name == params.name
+            && automatic->downloadCommand == params.downloadCommand
+            && automatic->downloadInput == params.downloadInput
+            && automatic->uploadCommand == params.uploadCommand
+            && automatic->uploadInput == params.uploadInput) {
+            settings.setPendingUpload(false);
         }
     }
     progress.setValue(100);
     showMessage(tr("Remote sync '%1' completed successfully.").arg(params.name), MessageWidget::Positive, false);
+    return true;
+}
+
+void DatabaseWidget::configureAutomaticSync()
+{
+    RemoteSettings settings(m_db);
+    if (isLocked() || !settings.automaticSyncParams()) {
+        m_remoteSyncTimer->stop();
+        m_remoteUploadTimer->stop();
+        return;
+    }
+    const auto interval = settings.automaticSyncIntervalMinutes() * 60 * 1000;
+    if (m_remoteSyncTimer->interval() != interval) {
+        m_remoteSyncTimer->setInterval(interval);
+    }
+    if (!m_remoteSyncTimer->isActive()) {
+        m_remoteSyncTimer->start();
+    }
+    if (settings.hasPendingUpload() && !m_db->isModified() && currentMode() == Mode::ViewMode
+        && !m_remoteSyncInProgress && !m_remoteUploadTimer->isActive()) {
+        m_remoteUploadTimer->start(250);
+    }
+}
+
+void DatabaseWidget::onRemoteSyncTimeout()
+{
+    if (isLocked() || currentMode() != Mode::ViewMode || m_remoteSyncInProgress || m_reloading
+        || m_attemptingLock || m_db->isSaving() || QApplication::activeModalWidget()) {
+        return;
+    }
+    RemoteSettings settings(m_db);
+    const auto* params = settings.automaticSyncParams();
+    if (!params || m_db->isModified() || settings.hasPendingUpload()) {
+        return;
+    }
+    auto downloadOnly = *params;
+    downloadOnly.uploadCommand.clear();
+    downloadOnly.uploadInput.clear();
+    syncWithRemote(downloadOnly);
+    configureAutomaticSync();
+}
+
+void DatabaseWidget::onRemoteUploadTimeout()
+{
+    if (isLocked() || m_attemptingLock) {
+        return;
+    }
+    if (currentMode() != Mode::ViewMode || m_remoteSyncInProgress || m_reloading
+        || m_db->isSaving() || QApplication::activeModalWidget()) {
+        m_remoteUploadTimer->start(1000);
+        return;
+    }
+    RemoteSettings settings(m_db);
+    const auto* params = settings.automaticSyncParams();
+    if (params && settings.hasPendingUpload() && !m_db->isModified()) {
+        const auto copy = *params;
+        syncWithRemote(copy);
+    }
+}
+
+bool DatabaseWidget::prepareForRemoteEdit()
+{
+    RemoteSettings settings(m_db);
+    const auto* params = settings.automaticSyncParams();
+    if (!params) {
+        return true;
+    }
+    if (m_remoteSyncInProgress || currentMode() != Mode::ViewMode) {
+        return false;
+    }
+    auto beforeEdit = *params;
+    if (!settings.hasPendingUpload() && !m_db->isModified()) {
+        beforeEdit.uploadCommand.clear();
+        beforeEdit.uploadInput.clear();
+    }
+    if (!syncWithRemote(beforeEdit)) {
+        showErrorMessage(tr("Automatic sync failed. Your local data is preserved. Retry sync, or disable automatic sync to edit offline."));
+        return false;
+    }
     return true;
 }
 
@@ -1803,6 +1974,13 @@ void DatabaseWidget::onGroupChanged()
 
 void DatabaseWidget::onDatabaseModified()
 {
+    if (m_remoteSyncInProgress) {
+        return;
+    }
+    RemoteSettings settings(m_db);
+    if (settings.automaticSyncParams()) {
+        settings.setPendingUpload(true);
+    }
     refreshSearch();
     int autosaveDelayMs = m_db->metadata()->autosaveDelayMin() * 60 * 1000; // min to msec for QTimer
     bool autosaveAfterEveryChangeConfig = config()->get(Config::AutoSaveAfterEveryChange).toBool();
@@ -2104,6 +2282,10 @@ bool DatabaseWidget::lock()
 
 void DatabaseWidget::reloadDatabaseFile(bool triggeredBySave)
 {
+    if (m_remoteSyncInProgress) {
+        QTimer::singleShot(200, this, [this, triggeredBySave] { reloadDatabaseFile(triggeredBySave); });
+        return;
+    }
     if (triggeredBySave) {
         // not a failed save attempt due to file locking
         m_saveAttempts = 0;
@@ -2544,10 +2726,18 @@ bool DatabaseWidget::saveAs()
 
 bool DatabaseWidget::performSave(QString& errorMessage, const QString& fileName)
 {
+    RemoteSettings remoteSettings(m_db);
+    const bool automatic = remoteSettings.automaticSyncParams();
+    const bool hadChanges = m_db->isModified();
+    QString historyPath;
+    if ((automatic || m_remoteSyncInProgress) && !createRemoteHistoryBackup(historyPath, errorMessage)) {
+        return false;
+    }
     QPointer<QWidget> focusWidget(qApp->focusWidget());
 
     // Lock out interactions
     auto mainWindow = getMainWindow();
+    const bool wasEnabled = mainWindow && mainWindow->isEnabled();
     if (mainWindow) {
         mainWindow->setDisabled(true);
     }
@@ -2591,14 +2781,68 @@ bool DatabaseWidget::performSave(QString& errorMessage, const QString& fileName)
 
     // Return control
     if (mainWindow) {
-        mainWindow->setDisabled(false);
+        mainWindow->setEnabled(wasEnabled);
     }
 
     if (focusWidget && focusWidget->isVisible()) {
         focusWidget->setFocus();
     }
 
+    if (ok) {
+        pruneRemoteHistory(historyPath);
+        if (automatic && !m_remoteSyncInProgress && (hadChanges || remoteSettings.hasPendingUpload())) {
+            remoteSettings.setPendingUpload(true);
+            m_remoteUploadTimer->start(250);
+        }
+    }
     return ok;
+}
+
+bool DatabaseWidget::createRemoteHistoryBackup(QString& backupPath, QString& errorMessage)
+{
+    const QFileInfo source(m_db->filePath());
+    if (!source.exists() || !source.isFile()) {
+        return true;
+    }
+    const auto pathHash = QCryptographicHash::hash(source.absoluteFilePath().toUtf8(), QCryptographicHash::Sha256)
+                              .toHex().left(12);
+    const auto prefix = source.completeBaseName() + ".autosync-" + QString::fromLatin1(pathHash) + "-";
+    QDir directory(source.absolutePath() + "/backups");
+    if (!directory.exists() && !QDir().mkpath(directory.absolutePath())) {
+        errorMessage = tr("Could not create the local history folder. The database was not overwritten.");
+        return false;
+    }
+    backupPath = directory.filePath(prefix + QDateTime::currentDateTimeUtc().toString("yyyyMMddTHHmmsszzz")
+                                   + "-" + QUuid::createUuid().toString(QUuid::Id128) + ".kdbx");
+    if (!QFile::copy(source.absoluteFilePath(), backupPath)) {
+        errorMessage = tr("Could not preserve local database history. The database was not overwritten.");
+        return false;
+    }
+    QFile::setPermissions(backupPath, source.permissions());
+    return true;
+}
+
+void DatabaseWidget::pruneRemoteHistory(const QString& backupPath)
+{
+    if (backupPath.isEmpty()) {
+        return;
+    }
+    const QFileInfo backup(backupPath);
+    const int marker = backup.fileName().lastIndexOf(".autosync-");
+    const int end = backup.fileName().indexOf('-', marker + 10);
+    if (marker < 0 || end < 0) {
+        return;
+    }
+    const auto prefix = backup.fileName().left(end + 1);
+    QStringList owned;
+    for (const auto& file : backup.dir().entryList(QDir::Files, QDir::Name | QDir::Reversed)) {
+        if (file.startsWith(prefix) && file.endsWith(".kdbx")) {
+            owned << file;
+        }
+    }
+    for (int i = 100; i < owned.size(); ++i) {
+        QFile::remove(backup.dir().filePath(owned[i]));
+    }
 }
 
 /**
