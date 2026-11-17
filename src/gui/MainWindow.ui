@@ -257,7 +257,11 @@
     <addaction name="actionPasskeys"/>
     <addaction name="actionImportPasskey"/>
     <addaction name="separator"/>
+    <widget class="QMenu" name="menuRemoteSync">
+     <property name="title"><string>Remote S&amp;ync…</string></property>
+    </widget>
     <addaction name="actionDatabaseMerge"/>
+    <addaction name="menuRemoteSync"/>
     <addaction name="actionImport"/>
     <addaction name="menuExport"/>
     <addaction name="separator"/>

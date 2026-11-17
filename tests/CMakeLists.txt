@@ -90,6 +90,8 @@ endmacro(add_unit_test)
 
 set(TEST_LIBRARIES keepassx_core Qt5::Test)
 
+add_unit_test(NAME testremotesync SOURCES TestRemoteSync.cpp LIBS ${TEST_LIBRARIES})
+
 set(testsupport_SOURCES
         modeltest.cpp
         FailDevice.cpp

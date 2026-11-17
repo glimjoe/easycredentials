@@ -45,6 +45,7 @@ class QSplitter;
 class QLabel;
 class EntryPreviewWidget;
 class TagView;
+struct RemoteParams;
 class ElidedLabel;
 
 namespace Ui
@@ -224,6 +225,8 @@ public slots:
     void switchToDatabaseSecurity();
     void switchToDatabaseReports();
     void switchToDatabaseSettings();
+    void switchToRemoteSettings();
+    bool syncWithRemote(const RemoteParams& params);
 #ifdef WITH_XC_BROWSER_PASSKEYS
     void switchToPasskeys();
     void showImportPasskeyDialog(bool isEntry = false);
@@ -280,6 +283,9 @@ private slots:
     void reloadDatabaseFile(bool triggeredBySave);
     void restoreGroupEntryFocus(const QUuid& groupUuid, const QUuid& EntryUuid);
     void onConfigChanged(Config::ConfigKey key);
+    void configureAutomaticSync();
+    void onRemoteSyncTimeout();
+    void onRemoteUploadTimeout();
 
 private:
     int addChildWidget(QWidget* w);
@@ -287,6 +293,9 @@ private:
     void openDatabaseFromEntry(const Entry* entry, bool inBackground = true);
     void performIconDownloads(const QList<Entry*>& entries, bool force = false, bool downloadInBackground = false);
     bool performSave(QString& errorMessage, const QString& fileName = {});
+    bool prepareForRemoteEdit();
+    bool createRemoteHistoryBackup(QString& backupPath, QString& errorMessage);
+    void pruneRemoteHistory(const QString& backupPath);
 
     QSharedPointer<Database> m_db;
 
@@ -317,6 +326,9 @@ private:
 
     int m_saveAttempts;
     bool m_attemptingLock = false;
+    bool m_remoteSyncInProgress = false;
+    QPointer<QTimer> m_remoteSyncTimer;
+    QPointer<QTimer> m_remoteUploadTimer;
 
     // Search state
     QScopedPointer<EntrySearcher> m_entrySearcher;

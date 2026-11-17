@@ -24,6 +24,7 @@
 #include "DatabaseSettingsWidgetBrowser.h"
 #endif
 #include "DatabaseSettingsWidgetMaintenance.h"
+#include "gui/remote/DatabaseSettingsWidgetRemote.h"
 #ifdef WITH_XC_KEESHARE
 #include "keeshare/DatabaseSettingsWidgetKeeShare.h"
 #endif
@@ -53,6 +54,7 @@ DatabaseSettingsDialog::DatabaseSettingsDialog(QWidget* parent)
     , m_fdoSecretsWidget(new DatabaseSettingsWidgetFdoSecrets(this))
 #endif
     , m_maintenanceWidget(new DatabaseSettingsWidgetMaintenance(this))
+    , m_remoteWidget(new DatabaseSettingsWidgetRemote(this))
 {
     connect(this, SIGNAL(accepted()), SLOT(save()));
     connect(this, SIGNAL(rejected()), SLOT(reject()));
@@ -71,8 +73,9 @@ DatabaseSettingsDialog::DatabaseSettingsDialog(QWidget* parent)
     m_securityTabWidget->setObjectName("securityTabWidget");
     m_securityTabWidget->addTab(scrollArea, tr("Database Credentials"));
     m_securityTabWidget->addTab(m_encryptionWidget, tr("Encryption Settings"));
-
     m_securityTabWidget->setCurrentIndex(0);
+
+    addPage(tr("Remote Sync"), icons()->icon("view-refresh"), m_remoteWidget);
 
 #ifdef WITH_XC_BROWSER
     addPage(tr("Browser Integration"), icons()->icon("internet-web-browser"), m_browserWidget);
@@ -104,6 +107,7 @@ void DatabaseSettingsDialog::load(const QSharedPointer<Database>& db)
     m_generalWidget->loadSettings(db);
     m_databaseKeyWidget->loadSettings(db);
     m_encryptionWidget->loadSettings(db);
+    m_remoteWidget->loadSettings(db);
 #ifdef WITH_XC_BROWSER
     m_browserWidget->loadSettings(db);
 #endif
@@ -127,6 +131,11 @@ void DatabaseSettingsDialog::showDatabaseKeySettings(int index)
     m_securityTabWidget->setCurrentIndex(index);
 }
 
+void DatabaseSettingsDialog::showRemoteSettings()
+{
+    setCurrentPage(2);
+}
+
 void DatabaseSettingsDialog::save()
 {
     if (!m_generalWidget->saveSettings()) {
@@ -143,6 +152,11 @@ void DatabaseSettingsDialog::save()
     if (!m_encryptionWidget->saveSettings()) {
         setCurrentPage(1);
         m_securityTabWidget->setCurrentIndex(1);
+        return;
+    }
+
+    if (!m_remoteWidget->saveSettings()) {
+        setCurrentPage(2);
         return;
     }
 
@@ -163,6 +177,7 @@ void DatabaseSettingsDialog::reject()
     m_generalWidget->discard();
     m_databaseKeyWidget->discard();
     m_encryptionWidget->discard();
+    m_remoteWidget->discard();
 #ifdef WITH_XC_BROWSER
     m_browserWidget->discard();
 #endif

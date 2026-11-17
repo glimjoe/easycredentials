@@ -9,7 +9,7 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>English</string>
   <key>CFBundleDisplayName</key>
-  <string>${PROJECT_NAME}</string>
+  <string>${PROGNAME}</string>
   <key>CFBundleExecutable</key>
   <string>${PROGNAME}</string>
   <key>CFBundleIconFile</key>
@@ -21,17 +21,15 @@
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>${PROJECT_NAME}</string>
+  <string>${PROGNAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleVersion</key>
-  <string>${KEEPASSXC_VERSION}</string>
+  <string>${KEEPASSXC_VERSION_MAJOR}.${KEEPASSXC_VERSION_MINOR}.${KEEPASSXC_VERSION_PATCH}</string>
   <key>CFBundleShortVersionString</key>
-  <string>${KEEPASSXC_VERSION}</string>
+  <string>${KEEPASSXC_VERSION_MAJOR}.${KEEPASSXC_VERSION_MINOR}.${KEEPASSXC_VERSION_PATCH}</string>
   <key>CFBundleSignature</key>
   <string>KPXC</string>
-  <key>CFBundleVersion</key>
-  <string>${KEEPASSXC_VERSION_NUM}</string>
   <key>NSHumanReadableCopyright</key>
     <string>Copyright 2016-2020 KeePassXC Development Team</string>
     <key>CFBundleDocumentTypes</key>
